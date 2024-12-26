@@ -1,7 +1,7 @@
-defmodule Giraffe.Graph.UndirectedTest do
+defmodule Giraffe.Graph.DirectedTest do
   use ExUnit.Case
 
-  alias Giraffe.Graph.Undirected, as: Graph
+  alias Giraffe.Graph.Directed, as: Graph
 
   describe "new/0" do
     test "creates empty graph" do
@@ -32,25 +32,12 @@ defmodule Giraffe.Graph.UndirectedTest do
   end
 
   describe "add_edge/4" do
-    test "adds bidirectional edges" do
+    test "adds directed edges" do
       graph =
         Graph.new()
-        |> Graph.add_vertex(:a)
-        |> Graph.add_vertex(:b)
         |> Graph.add_edge(:a, :b, 1.0)
 
       assert Graph.edges(graph) == [{:a, :b, 1.0}]
-    end
-
-    test "updates existing edge weight" do
-      graph =
-        Graph.new()
-        |> Graph.add_vertex(:a)
-        |> Graph.add_vertex(:b)
-        |> Graph.add_edge(:a, :b, 1.0)
-        |> Graph.add_edge(:a, :b, 2.0)
-
-      assert Graph.edges(graph) == [{:a, :b, 2.0}]
     end
 
     test "automatically adds vertices when creating edges" do
@@ -92,15 +79,20 @@ defmodule Giraffe.Graph.UndirectedTest do
 
       assert Graph.get_shortest_path(graph, :a, :b) == :no_path
     end
+
+    test "respects direction of edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+
+      assert Graph.get_shortest_path(graph, :b, :a) == :no_path
+    end
   end
 
   describe "get_paths/3" do
     test "finds all paths between vertices" do
       graph =
         Graph.new()
-        |> Graph.add_vertex(:a)
-        |> Graph.add_vertex(:b)
-        |> Graph.add_vertex(:c)
         |> Graph.add_edge(:a, :b, 1.0)
         |> Graph.add_edge(:b, :c, 2.0)
         |> Graph.add_edge(:a, :c, 5.0)
@@ -118,6 +110,14 @@ defmodule Giraffe.Graph.UndirectedTest do
         |> Graph.add_vertex(:b)
 
       assert Graph.get_paths(graph, :a, :b) == []
+    end
+
+    test "respects direction of edges in path finding" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+
+      assert Graph.get_paths(graph, :b, :a) == []
     end
   end
 end
