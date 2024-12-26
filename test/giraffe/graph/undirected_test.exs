@@ -214,4 +214,77 @@ defmodule Giraffe.Graph.UndirectedTest do
       assert Graph.is_acyclic?(graph) == true
     end
   end
+
+  describe "is_cyclic?/1" do
+    test "returns true for a triangle" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :a, 1.0)
+
+      assert Graph.is_cyclic?(graph)
+    end
+
+    test "returns true for a square" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :d, 1.0)
+        |> Graph.add_edge(:d, :a, 1.0)
+
+      assert Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for a path" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for a star graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:center, :a, 1.0)
+        |> Graph.add_edge(:center, :b, 1.0)
+        |> Graph.add_edge(:center, :c, 1.0)
+
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for a single edge" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for isolated vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+        |> Graph.add_vertex(:c)
+
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns true for complex graph with multiple cycles" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :a, 1.0)
+        |> Graph.add_edge(:c, :d, 1.0)
+        |> Graph.add_edge(:d, :e, 1.0)
+        |> Graph.add_edge(:e, :c, 1.0)
+
+      assert Graph.is_cyclic?(graph)
+    end
+  end
 end

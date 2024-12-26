@@ -185,6 +185,15 @@ defmodule Giraffe.Graph.Undirected do
     |> elem(2)
   end
 
+  @doc """
+  Checks if the graph contains any cycles.
+  Returns true if the graph has cycles, false otherwise.
+  """
+  @spec is_cyclic?(t()) :: boolean()
+  def is_cyclic?(%__MODULE__{vertices: vertices} = graph) do
+    not is_acyclic?(graph)
+  end
+
   defp dfs_acyclic(vertex, edges, visited, parent, prev) do
     new_visited = MapSet.put(visited, vertex)
     new_parent = Map.put(parent, vertex, prev)

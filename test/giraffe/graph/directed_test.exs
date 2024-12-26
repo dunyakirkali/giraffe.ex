@@ -163,4 +163,57 @@ defmodule Giraffe.Graph.DirectedTest do
       assert Graph.is_acyclic?(graph) == false
     end
   end
+
+  describe "is_cyclic?/1" do
+    test "returns true for a graph with a self-loop" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :a, 1.0)
+
+      assert Graph.is_cyclic?(graph)
+    end
+
+    test "returns true for a graph with a cycle" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :a, 1.0)
+
+      assert Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for an acyclic graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for an empty graph" do
+      graph = Graph.new()
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns false for a single vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+
+      refute Graph.is_cyclic?(graph)
+    end
+
+    test "returns true for a complex cyclic graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :d, 1.0)
+        |> Graph.add_edge(:d, :b, 1.0)
+
+      assert Graph.is_cyclic?(graph)
+    end
+  end
 end

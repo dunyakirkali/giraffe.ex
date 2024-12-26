@@ -138,6 +138,14 @@ defmodule Giraffe.Graph.Directed do
     recurse_vertices(vertices, visited, edges)
   end
 
+  @doc """
+  Checks if the graph is cyclic.
+
+  Returns `true` if the graph contains cycles, otherwise `false`.
+  """
+  @spec is_cyclic?(t()) :: boolean()
+  def is_cyclic?(graph), do: not is_acyclic?(graph)
+
   # Private Functions
 
   defp recurse_vertices([], _visited, _edges), do: true
