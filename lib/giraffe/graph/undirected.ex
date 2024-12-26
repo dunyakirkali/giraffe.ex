@@ -194,6 +194,14 @@ defmodule Giraffe.Graph.Undirected do
     not is_acyclic?(graph)
   end
 
+  @spec neighbors(t(), vertex()) :: [vertex()]
+  def neighbors(%__MODULE__{edges: edges}, vertex) do
+    edges
+    |> Map.get(vertex, %{})
+    |> Map.keys()
+    |> Enum.sort()
+  end
+
   defp dfs_acyclic(vertex, edges, visited, parent, prev) do
     new_visited = MapSet.put(visited, vertex)
     new_parent = Map.put(parent, vertex, prev)

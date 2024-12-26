@@ -287,4 +287,33 @@ defmodule Giraffe.Graph.UndirectedTest do
       assert Graph.is_cyclic?(graph)
     end
   end
+
+  describe "neighbors/2" do
+    test "returns all neighboring vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+
+      assert Graph.neighbors(graph, :b) == [:a, :c]
+    end
+
+    test "returns empty list for non-existent vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+
+      assert Graph.neighbors(graph, :c) == []
+    end
+
+    test "returns neighbors for vertex with multiple connections" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:center, :a, 1.0)
+        |> Graph.add_edge(:center, :b, 1.0)
+        |> Graph.add_edge(:center, :c, 1.0)
+
+      assert Graph.neighbors(graph, :center) == [:a, :b, :c]
+    end
+  end
 end

@@ -216,4 +216,34 @@ defmodule Giraffe.Graph.DirectedTest do
       assert Graph.is_cyclic?(graph)
     end
   end
+
+  describe "neighbors/2" do
+    test "returns all neighboring vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :a, 1.0)
+
+      assert Graph.neighbors(graph, :b) == [:a, :c]
+    end
+
+    test "returns empty list for non-existent vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+
+      assert Graph.neighbors(graph, :c) == []
+    end
+
+    test "returns both incoming and outgoing neighbors" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:c, :b, 1.0)
+        |> Graph.add_edge(:b, :d, 1.0)
+
+      assert Graph.neighbors(graph, :b) == [:a, :c, :d]
+    end
+  end
 end

@@ -146,6 +146,23 @@ defmodule Giraffe.Graph.Directed do
   @spec is_cyclic?(t()) :: boolean()
   def is_cyclic?(graph), do: not is_acyclic?(graph)
 
+  @spec neighbors(t(), vertex()) :: [vertex()]
+  def neighbors(%__MODULE__{edges: edges}, vertex) do
+    # Get outgoing edges
+    outgoing = Map.get(edges, vertex, %{}) |> Map.keys()
+
+    # Get incoming edges
+    incoming =
+      edges
+      |> Enum.filter(fn {_, targets} -> Map.has_key?(targets, vertex) end)
+      |> Enum.map(fn {source, _} -> source end)
+
+    # Combine and remove duplicates
+    (outgoing ++ incoming)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
   # Private Functions
 
   defp recurse_vertices([], _visited, _edges), do: true
