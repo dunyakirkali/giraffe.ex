@@ -190,7 +190,7 @@ defmodule Giraffe.Graph.Undirected do
   Returns true if the graph has cycles, false otherwise.
   """
   @spec is_cyclic?(t()) :: boolean()
-  def is_cyclic?(%__MODULE__{vertices: vertices} = graph) do
+  def is_cyclic?(graph) do
     not is_acyclic?(graph)
   end
 
@@ -200,6 +200,42 @@ defmodule Giraffe.Graph.Undirected do
     |> Map.get(vertex, %{})
     |> Map.keys()
     |> Enum.sort()
+  end
+
+  @spec postorder(t()) :: [vertex()]
+  def postorder(%__MODULE__{vertices: vertices, edges: edges}) do
+    visited = MapSet.new()
+    result = []
+
+    vertices
+    |> MapSet.to_list()
+    |> Enum.reduce({visited, result}, fn vertex, {visited, result} ->
+      if MapSet.member?(visited, vertex) do
+        {visited, result}
+      else
+        dfs_postorder(vertex, edges, visited, result)
+      end
+    end)
+    |> elem(1)
+    |> Enum.reverse()
+  end
+
+  defp dfs_postorder(vertex, edges, visited, result) do
+    visited = MapSet.put(visited, vertex)
+
+    {new_visited, new_result} =
+      edges
+      |> Map.get(vertex, %{})
+      |> Map.keys()
+      |> Enum.reduce({visited, result}, fn neighbor, {vis, res} ->
+        if MapSet.member?(vis, neighbor) do
+          {vis, res}
+        else
+          dfs_postorder(neighbor, edges, vis, res)
+        end
+      end)
+
+    {new_visited, [vertex | new_result]}
   end
 
   defp dfs_acyclic(vertex, edges, visited, parent, prev) do

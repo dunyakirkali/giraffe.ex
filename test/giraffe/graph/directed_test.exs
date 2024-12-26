@@ -246,4 +246,41 @@ defmodule Giraffe.Graph.DirectedTest do
       assert Graph.neighbors(graph, :b) == [:a, :c, :d]
     end
   end
+
+  describe "postorder/1" do
+    test "returns vertices in postorder for a simple path" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+
+      assert Graph.postorder(graph) == [:c, :b, :a]
+    end
+
+    test "returns vertices in postorder for a tree-like graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:b, :d, 1.0)
+        |> Graph.add_edge(:c, :e, 1.0)
+
+      assert Graph.postorder(graph) == [:e, :c, :d, :b, :a]
+    end
+
+    test "handles disconnected components" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_vertex(:c)
+        |> Graph.add_vertex(:d)
+
+      result = Graph.postorder(graph)
+      assert length(result) == 4
+      assert :b in result
+      assert :a in result
+      assert :c in result
+      assert :d in result
+    end
+  end
 end
