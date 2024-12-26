@@ -120,4 +120,47 @@ defmodule Giraffe.Graph.DirectedTest do
       assert Graph.get_paths(graph, :b, :a) == []
     end
   end
+
+  describe "is_acyclic?/1" do
+    test "returns true for an acyclic graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+
+      assert Graph.is_acyclic?(graph) == true
+    end
+
+    test "returns false for a cyclic graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :a, 1.0)
+
+      assert Graph.is_acyclic?(graph) == false
+    end
+
+    test "returns true for an empty graph" do
+      graph = Graph.new()
+
+      assert Graph.is_acyclic?(graph) == true
+    end
+
+    test "returns true for a graph with a single vertex and no edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+
+      assert Graph.is_acyclic?(graph) == true
+    end
+
+    test "returns false for a graph with a self-loop" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :a, 1.0)
+
+      assert Graph.is_acyclic?(graph) == false
+    end
+  end
 end

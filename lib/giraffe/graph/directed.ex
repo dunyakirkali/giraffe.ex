@@ -126,7 +126,64 @@ defmodule Giraffe.Graph.Directed do
     )
   end
 
+  @doc """
+  Checks if the graph is acyclic.
+
+  Returns `true` if the graph is acyclic, otherwise `false`.
+  """
+  @spec is_acyclic?(t()) :: boolean()
+  def is_acyclic?(%__MODULE__{edges: edges, vertices: vertices}) do
+    vertices = MapSet.to_list(vertices)
+    visited = Map.new(vertices, fn v -> {v, :unvisited} end)
+    recurse_vertices(vertices, visited, edges)
+  end
+
   # Private Functions
+
+  defp recurse_vertices([], _visited, _edges), do: true
+
+  defp recurse_vertices([v | rest], visited, edges) do
+    case Map.get(visited, v) do
+      :unvisited ->
+        {has_cycle, new_visited} = has_cycle?(v, edges, visited, MapSet.new())
+
+        if has_cycle do
+          false
+        else
+          recurse_vertices(rest, new_visited, edges)
+        end
+
+      _ ->
+        recurse_vertices(rest, visited, edges)
+    end
+  end
+
+  defp has_cycle?(vertex, edges, visited, path) do
+    if MapSet.member?(path, vertex) do
+      {true, visited}
+    else
+      visited = Map.put(visited, vertex, :visited)
+      path = MapSet.put(path, vertex)
+
+      neighbors = Map.get(edges, vertex, %{})
+
+      Enum.reduce_while(neighbors, {false, visited}, fn {neighbor, _weight},
+                                                        {_cycle, acc_visited} ->
+        case Map.get(acc_visited, neighbor) do
+          :unvisited ->
+            {has_cycle, new_visited} = has_cycle?(neighbor, edges, acc_visited, path)
+            if has_cycle, do: {:halt, {true, new_visited}}, else: {:cont, {false, new_visited}}
+
+          _ ->
+            if MapSet.member?(path, neighbor) do
+              {:halt, {true, acc_visited}}
+            else
+              {:cont, {false, acc_visited}}
+            end
+        end
+      end)
+    end
+  end
 
   @doc false
   @spec to_undirected_edges(%{vertex() => %{vertex() => weight()}}) :: %{

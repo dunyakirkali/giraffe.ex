@@ -110,8 +110,49 @@ defmodule Giraffe.Graph.Undirected do
   A clique is a subset of vertices that forms a complete subgraph.
   """
   @spec cliques(t()) :: [[vertex()]]
-  def cliques(%__MODULE__{vertices: vertices, edges: edges}) do
-    Giraffe.Algorithms.BronKerbosch.find_cliques(MapSet.to_list(vertices), edges)
+  def cliques(%__MODULE__{vertices: vertices, edges: _edges} = graph) do
+    bron_kerbosch(MapSet.new(), MapSet.new(vertices), MapSet.new(), graph)
+  end
+
+  defp bron_kerbosch(r, p, x, graph) do
+    if MapSet.size(p) == 0 and MapSet.size(x) == 0 do
+      [MapSet.to_list(r)]
+    else
+      pivot = choose_pivot(p, x, graph)
+      excluded_neighbors = get_neighbors(pivot, graph)
+
+      p
+      |> MapSet.difference(excluded_neighbors)
+      |> MapSet.to_list()
+      |> Enum.flat_map(fn v ->
+        neighbors = get_neighbors(v, graph)
+        new_r = MapSet.put(r, v)
+        new_p = MapSet.intersection(p, neighbors)
+        new_x = MapSet.intersection(x, neighbors)
+        bron_kerbosch(new_r, new_p, new_x, graph)
+      end)
+    end
+  end
+
+  defp get_neighbors(v, %__MODULE__{edges: edges}) do
+    edges
+    |> Map.get(v, %{})
+    |> Map.keys()
+    |> MapSet.new()
+  end
+
+  defp choose_pivot(p, x, graph) do
+    candidates = MapSet.union(p, x)
+
+    if MapSet.size(candidates) == 0 do
+      nil
+    else
+      MapSet.to_list(candidates)
+      |> Enum.max_by(fn v ->
+        neighbors = get_neighbors(v, graph)
+        MapSet.intersection(p, neighbors) |> MapSet.size()
+      end)
+    end
   end
 
   def shortest_paths(graph, source) do
@@ -121,7 +162,61 @@ defmodule Giraffe.Graph.Undirected do
     )
   end
 
+  @doc """
+  Checks if the graph is acyclic (contains no cycles).
+  Returns true if the graph has no cycles, false otherwise.
+  """
+  @spec is_acyclic?(t()) :: boolean()
+  def is_acyclic?(%__MODULE__{vertices: vertices, edges: edges}) do
+    vertices_list = MapSet.to_list(vertices)
+    directed_edges = to_directed_edges(edges)
+    visited = MapSet.new()
+
+    Enum.reduce_while(vertices_list, {visited, true}, fn vertex, {visited, _} ->
+      if MapSet.member?(visited, vertex) do
+        {:cont, {visited, true}}
+      else
+        case dfs(vertex, directed_edges, visited, MapSet.new()) do
+          {:cycle, _} -> {:halt, {visited, false}}
+          {:ok, new_visited} -> {:cont, {new_visited, true}}
+        end
+      end
+    end)
+    |> elem(1)
+  end
+
+  defp to_directed_edges(edges) do
+    Enum.reduce(edges, %{}, fn {vertex, neighbors}, acc ->
+      Enum.reduce(neighbors, acc, fn {neighbor, weight}, inner_acc ->
+        Map.update(inner_acc, vertex, %{neighbor => weight}, fn existing ->
+          Map.put(existing, neighbor, weight)
+        end)
+      end)
+    end)
+  end
+
   # Private Functions
+
+  defp dfs(vertex, edges, visited, stack) do
+    if MapSet.member?(stack, vertex) do
+      {:cycle, visited}
+    else
+      new_stack = MapSet.put(stack, vertex)
+      new_visited = MapSet.put(visited, vertex)
+      neighbors = Map.get(edges, vertex, %{}) |> Map.keys()
+
+      Enum.reduce_while(neighbors, {:ok, new_visited}, fn neighbor, {:ok, visited_acc} ->
+        if MapSet.member?(visited_acc, neighbor) and not MapSet.member?(stack, neighbor) do
+          {:cont, {:ok, visited_acc}}
+        else
+          case dfs(neighbor, edges, visited_acc, new_stack) do
+            {:cycle, new_visited} -> {:halt, {:cycle, new_visited}}
+            {:ok, new_visited} -> {:cont, {:ok, new_visited}}
+          end
+        end
+      end)
+    end
+  end
 
   @spec dijkstra(t(), vertex(), vertex()) ::
           {:ok, %{vertex() => weight()}, %{vertex() => vertex()}} | :no_path
