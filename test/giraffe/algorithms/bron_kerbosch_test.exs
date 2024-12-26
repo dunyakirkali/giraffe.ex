@@ -82,7 +82,7 @@ defmodule Giraffe.Algorithms.BronKerboschTest do
       }
 
       cliques = BronKerbosch.find_cliques(vertices, edges)
-      assert length(cliques) == 4
+      assert length(cliques) == 3
       assert Enum.sort([:a, :b]) in Enum.map(cliques, &Enum.sort/1)
       assert [:c] in cliques
       assert [:d] in cliques

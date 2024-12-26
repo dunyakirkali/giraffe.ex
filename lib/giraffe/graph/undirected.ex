@@ -169,53 +169,43 @@ defmodule Giraffe.Graph.Undirected do
   @spec is_acyclic?(t()) :: boolean()
   def is_acyclic?(%__MODULE__{vertices: vertices, edges: edges}) do
     vertices_list = MapSet.to_list(vertices)
-    directed_edges = to_directed_edges(edges)
     visited = MapSet.new()
+    parent = %{}
 
-    Enum.reduce_while(vertices_list, {visited, true}, fn vertex, {visited, _} ->
+    Enum.reduce_while(vertices_list, {visited, parent, true}, fn vertex, {visited, parent, _} ->
       if MapSet.member?(visited, vertex) do
-        {:cont, {visited, true}}
+        {:cont, {visited, parent, true}}
       else
-        case dfs(vertex, directed_edges, visited, MapSet.new()) do
-          {:cycle, _} -> {:halt, {visited, false}}
-          {:ok, new_visited} -> {:cont, {new_visited, true}}
+        case dfs_acyclic(vertex, edges, visited, parent, nil) do
+          {:cycle, _, _} -> {:halt, {visited, parent, false}}
+          {:ok, new_visited, new_parent} -> {:cont, {new_visited, new_parent, true}}
         end
       end
     end)
-    |> elem(1)
+    |> elem(2)
   end
 
-  defp to_directed_edges(edges) do
-    Enum.reduce(edges, %{}, fn {vertex, neighbors}, acc ->
-      Enum.reduce(neighbors, acc, fn {neighbor, weight}, inner_acc ->
-        Map.update(inner_acc, vertex, %{neighbor => weight}, fn existing ->
-          Map.put(existing, neighbor, weight)
-        end)
-      end)
-    end)
-  end
+  defp dfs_acyclic(vertex, edges, visited, parent, prev) do
+    new_visited = MapSet.put(visited, vertex)
+    new_parent = Map.put(parent, vertex, prev)
 
-  # Private Functions
+    neighbors = Map.get(edges, vertex, %{}) |> Map.keys()
 
-  defp dfs(vertex, edges, visited, stack) do
-    if MapSet.member?(stack, vertex) do
-      {:cycle, visited}
-    else
-      new_stack = MapSet.put(stack, vertex)
-      new_visited = MapSet.put(visited, vertex)
-      neighbors = Map.get(edges, vertex, %{}) |> Map.keys()
+    Enum.reduce_while(neighbors, {:ok, new_visited, new_parent}, fn neighbor, {:ok, vis, par} ->
+      cond do
+        neighbor == prev ->
+          {:cont, {:ok, vis, par}}
 
-      Enum.reduce_while(neighbors, {:ok, new_visited}, fn neighbor, {:ok, visited_acc} ->
-        if MapSet.member?(visited_acc, neighbor) and not MapSet.member?(stack, neighbor) do
-          {:cont, {:ok, visited_acc}}
-        else
-          case dfs(neighbor, edges, visited_acc, new_stack) do
-            {:cycle, new_visited} -> {:halt, {:cycle, new_visited}}
-            {:ok, new_visited} -> {:cont, {:ok, new_visited}}
+        MapSet.member?(vis, neighbor) ->
+          {:halt, {:cycle, vis, par}}
+
+        true ->
+          case dfs_acyclic(neighbor, edges, vis, par, vertex) do
+            {:cycle, new_vis, new_par} -> {:halt, {:cycle, new_vis, new_par}}
+            {:ok, new_vis, new_par} -> {:cont, {:ok, new_vis, new_par}}
           end
-        end
-      end)
-    end
+      end
+    end)
   end
 
   @spec dijkstra(t(), vertex(), vertex()) ::
