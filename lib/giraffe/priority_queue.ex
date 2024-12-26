@@ -15,6 +15,7 @@ defmodule Giraffe.PriorityQueue do
   @doc """
   Creates a new empty priority queue
   """
+  @spec new() :: t
   def new, do: %PriorityQueue{}
 
   @doc """
@@ -55,5 +56,16 @@ defmodule Giraffe.PriorityQueue do
 
   defp insert(item, [head | tail]) do
     [head | insert(item, tail)]
+  end
+
+  defimpl Inspect do
+    def inspect(%PriorityQueue{items: []}, _), do: "#PriorityQueue<size: 0, queue: []>"
+
+    def inspect(%PriorityQueue{items: list}, opts) do
+      items = Enum.map(list, fn {_, item} -> item end)
+      count = Enum.count(list)
+      doc = Inspect.Algebra.to_doc(items, opts)
+      Inspect.Algebra.concat(["#PriorityQueue<size: #{count}, queue: ", doc, ">"])
+    end
   end
 end

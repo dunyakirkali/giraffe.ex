@@ -105,4 +105,17 @@ defmodule Giraffe.PriorityQueueTest do
       assert PriorityQueue.dequeue(queue) == :empty
     end
   end
+
+  describe "inspect/1" do
+    test "pretty prints the size and the queue" do
+      queue =
+        PriorityQueue.new()
+        |> PriorityQueue.enqueue(3, "low")
+        |> PriorityQueue.enqueue(1, "high")
+        |> PriorityQueue.enqueue(2, "medium")
+
+      str = "#{inspect(queue)}"
+      assert "#PriorityQueue<size: 3, queue: [\"high\", \"medium\", \"low\"]>" = str
+    end
+  end
 end
