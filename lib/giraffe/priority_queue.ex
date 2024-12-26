@@ -58,6 +58,13 @@ defmodule Giraffe.PriorityQueue do
     [head | insert(item, tail)]
   end
 
+  @doc """
+  Returns the highest priority item without removing it from the queue
+  Returns {:ok, item} or :empty if queue is empty
+  """
+  def peek(%PriorityQueue{items: []}), do: :empty
+  def peek(%PriorityQueue{items: [{_priority, value} | _rest]}), do: {:ok, value}
+
   defimpl Inspect do
     def inspect(%PriorityQueue{items: []}, _), do: "#PriorityQueue<size: 0, queue: []>"
 

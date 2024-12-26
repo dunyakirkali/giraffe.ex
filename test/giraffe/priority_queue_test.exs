@@ -118,4 +118,32 @@ defmodule Giraffe.PriorityQueueTest do
       assert "#PriorityQueue<size: 3, queue: [\"high\", \"medium\", \"low\"]>" = str
     end
   end
+
+  describe "peek/1" do
+    test "returns highest priority item without removing it" do
+      queue =
+        PriorityQueue.new()
+        |> PriorityQueue.enqueue(3, "low")
+        |> PriorityQueue.enqueue(1, "high")
+        |> PriorityQueue.enqueue(2, "medium")
+
+      assert PriorityQueue.peek(queue) == {:ok, "high"}
+      # Size remains unchanged
+      assert PriorityQueue.size(queue) == 3
+    end
+
+    test "returns :empty for empty queue" do
+      assert PriorityQueue.peek(PriorityQueue.new()) == :empty
+    end
+
+    test "peek followed by dequeue returns same item" do
+      queue =
+        PriorityQueue.new()
+        |> PriorityQueue.enqueue(1, "high")
+
+      assert PriorityQueue.peek(queue) == {:ok, "high"}
+      {dequeued_item, _} = PriorityQueue.dequeue(queue)
+      assert dequeued_item == "high"
+    end
+  end
 end
