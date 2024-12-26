@@ -4,8 +4,6 @@ defmodule Giraffe.PriorityQueue do
   Lower priority values are dequeued first.
   """
 
-  alias Giraffe.PriorityQueue, as: PriorityQueue
-
   defstruct items: []
 
   @type t :: %__MODULE__{
@@ -16,35 +14,35 @@ defmodule Giraffe.PriorityQueue do
   Creates a new empty priority queue
   """
   @spec new() :: t
-  def new, do: %PriorityQueue{}
+  def new, do: %__MODULE__{}
 
   @doc """
   Enqueues an item with a given priority
   """
-  def enqueue(%PriorityQueue{items: items}, priority, value) do
-    %PriorityQueue{items: insert({priority, value}, items)}
+  def enqueue(%__MODULE__{items: items}, priority, value) do
+    %__MODULE__{items: insert({priority, value}, items)}
   end
 
   @doc """
   Dequeues the item with the lowest priority
   Returns {item, new_queue} or :empty if queue is empty
   """
-  def dequeue(%PriorityQueue{items: []}), do: :empty
+  def dequeue(%__MODULE__{items: []}), do: :empty
 
-  def dequeue(%PriorityQueue{items: [{_priority, value} | rest]}) do
-    {value, %PriorityQueue{items: rest}}
+  def dequeue(%__MODULE__{items: [{_priority, value} | rest]}) do
+    {value, %__MODULE__{items: rest}}
   end
 
   @doc """
   Returns the size of the queue
   """
-  def size(%PriorityQueue{items: items}), do: length(items)
+  def size(%__MODULE__{items: items}), do: length(items)
 
   @doc """
   Checks if the queue is empty
   """
-  def empty?(%PriorityQueue{items: []}), do: true
-  def empty?(%PriorityQueue{items: _}), do: false
+  def empty?(%__MODULE__{items: []}), do: true
+  def empty?(%__MODULE__{items: _}), do: false
 
   # Private helper functions
   defp insert(item, []), do: [item]
@@ -62,13 +60,13 @@ defmodule Giraffe.PriorityQueue do
   Returns the highest priority item without removing it from the queue
   Returns {:ok, item} or :empty if queue is empty
   """
-  def peek(%PriorityQueue{items: []}), do: :empty
-  def peek(%PriorityQueue{items: [{_priority, value} | _rest]}), do: {:ok, value}
+  def peek(%__MODULE__{items: []}), do: :empty
+  def peek(%__MODULE__{items: [{_priority, value} | _rest]}), do: {:ok, value}
 
   defimpl Inspect do
-    def inspect(%PriorityQueue{items: []}, _), do: "#PriorityQueue<size: 0, queue: []>"
+    def inspect(%Giraffe.PriorityQueue{items: []}, _), do: "#PriorityQueue<size: 0, queue: []>"
 
-    def inspect(%PriorityQueue{items: list}, opts) do
+    def inspect(%Giraffe.PriorityQueue{items: list}, opts) do
       items = Enum.map(list, fn {_, item} -> item end)
       count = Enum.count(list)
       doc = Inspect.Algebra.to_doc(items, opts)
