@@ -120,4 +120,64 @@ defmodule Giraffe.Graph.UndirectedTest do
       assert Graph.get_paths(graph, :a, :b) == []
     end
   end
+
+  describe "cliques/1" do
+    test "finds cliques in a triangle" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :a, 1.0)
+
+      cliques = Graph.cliques(graph)
+      assert length(cliques) == 1
+      assert List.first(cliques) |> Enum.sort() == [:a, :b, :c]
+    end
+
+    test "finds cliques in a square with diagonal" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1.0)
+        |> Graph.add_edge(:b, :c, 1.0)
+        |> Graph.add_edge(:c, :d, 1.0)
+        |> Graph.add_edge(:d, :a, 1.0)
+        |> Graph.add_edge(:a, :c, 1.0)
+
+      cliques = Graph.cliques(graph)
+      assert length(cliques) == 2
+
+      assert Enum.any?(cliques, fn clique ->
+               Enum.sort(clique) == [:a, :b, :c]
+             end)
+
+      assert Enum.any?(cliques, fn clique ->
+               Enum.sort(clique) == [:a, :c, :d]
+             end)
+    end
+
+    test "handles empty graph" do
+      graph = Graph.new()
+      assert Graph.cliques(graph) == []
+    end
+
+    test "handles single vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+
+      assert Graph.cliques(graph) == [[:a]]
+    end
+
+    test "handles disconnected vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+
+      cliques = Graph.cliques(graph)
+      assert length(cliques) == 2
+      assert [:a] in cliques
+      assert [:b] in cliques
+    end
+  end
 end

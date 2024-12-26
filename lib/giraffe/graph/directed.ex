@@ -81,19 +81,16 @@ defmodule Giraffe.Graph.Directed do
     # Priority queue with {vertex, distance} tuples, starting with just the start vertex
     queue = :gb_sets.singleton({0, start})
 
-    case dijkstra_loop(queue, distances, predecessors, edges, finish) do
-      {final_distances, final_predecessors} ->
-        case Map.get(final_distances, finish) do
-          :infinity ->
-            :no_path
+    {final_distances, final_predecessors} =
+      dijkstra_loop(queue, distances, predecessors, edges, finish)
 
-          distance ->
-            path = build_path(final_predecessors, finish)
-            {:ok, path, distance}
-        end
-
-      _ ->
+    case Map.get(final_distances, finish) do
+      :infinity ->
         :no_path
+
+      distance ->
+        path = build_path(final_predecessors, finish)
+        {:ok, path, distance}
     end
   end
 
@@ -106,8 +103,69 @@ defmodule Giraffe.Graph.Directed do
     find_all_paths(graph, start, finish, [start], MapSet.new([start]), 0.0)
   end
 
+  @doc """
+  Finds all maximal cliques in the graph.
+  A clique is a subset of vertices where every vertex is connected to every other vertex.
+  Only considers bidirectional edges.
+  """
+  @spec cliques(t()) :: [[vertex()]]
+  def cliques(%__MODULE__{vertices: vertices, edges: edges}) do
+    undirected_edges = to_undirected_edges(edges)
+    Giraffe.Algorithms.BronKerbosch.find_cliques(MapSet.to_list(vertices), undirected_edges)
+  end
+
+  @doc """
+  Finds the shortest paths from a source vertex to all other vertices using the Bellman-Ford algorithm.
+  Returns {:ok, distances} with distances from source to all reachable vertices, or {:error, :negative_cycle}
+  if a negative cycle is detected.
+  """
+  def shortest_paths(graph, source) do
+    Giraffe.Algorithms.BellmanFord.shortest_paths(
+      graph,
+      source
+    )
+  end
+
   # Private Functions
 
+  @doc false
+  @spec to_undirected_edges(%{vertex() => %{vertex() => weight()}}) :: %{
+          vertex() => %{vertex() => weight()}
+        }
+  defp to_undirected_edges(edges) do
+    Enum.reduce(edges, %{}, fn {from, targets}, acc ->
+      Enum.reduce(targets, acc, fn {to, weight}, inner_acc ->
+        if bidirectional?(edges, from, to) do
+          inner_acc
+          |> Map.update(from, %{to => weight}, &Map.put(&1, to, weight))
+          |> Map.update(to, %{from => weight}, &Map.put(&1, from, weight))
+        else
+          inner_acc
+        end
+      end)
+    end)
+  end
+
+  @doc false
+  @spec bidirectional?(%{vertex() => %{vertex() => weight()}}, vertex(), vertex()) :: boolean()
+  defp bidirectional?(edges, v1, v2) do
+    has_edge?(edges, v1, v2) and has_edge?(edges, v2, v1)
+  end
+
+  @doc false
+  @spec has_edge?(%{vertex() => %{vertex() => weight()}}, vertex(), vertex()) :: boolean()
+  defp has_edge?(edges, from, to) do
+    edges |> Map.get(from, %{}) |> Map.has_key?(to)
+  end
+
+  @doc false
+  @spec dijkstra_loop(
+          :gb_sets.set(),
+          map(),
+          map(),
+          %{vertex() => %{vertex() => weight()}},
+          vertex()
+        ) :: {map(), map()}
   defp dijkstra_loop(queue, distances, predecessors, edges, target) do
     case :gb_sets.is_empty(queue) do
       true ->

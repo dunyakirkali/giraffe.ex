@@ -103,6 +103,24 @@ defmodule Giraffe.Graph.Undirected do
     find_all_paths(graph, start, finish, [start], MapSet.new([start]), 0.0)
   end
 
+  @doc """
+  Detects all maximal cliques in the graph using the Bron-Kerbosch algorithm.
+
+  Returns a list of cliques, where each clique is a list of vertices.
+  A clique is a subset of vertices that forms a complete subgraph.
+  """
+  @spec cliques(t()) :: [[vertex()]]
+  def cliques(%__MODULE__{vertices: vertices, edges: edges}) do
+    Giraffe.Algorithms.BronKerbosch.find_cliques(MapSet.to_list(vertices), edges)
+  end
+
+  def shortest_paths(graph, source) do
+    Giraffe.Algorithms.BellmanFord.shortest_paths(
+      graph,
+      source
+    )
+  end
+
   # Private Functions
 
   @spec dijkstra(t(), vertex(), vertex()) ::
