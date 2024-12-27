@@ -7,7 +7,7 @@ defmodule GraphTest do
   describe "directed graph" do
     setup do
       graph =
-        Graph.new(:directed)
+        Graph.new(type: :directed)
         |> Graph.add_vertex(1)
         |> Graph.add_vertex(2)
         |> Graph.add_vertex(3)
@@ -29,7 +29,7 @@ defmodule GraphTest do
   describe "undirected graph" do
     setup do
       graph =
-        Graph.new(:undirected)
+        Graph.new(type: :undirected)
         |> Graph.add_vertex(1)
         |> Graph.add_vertex(2)
         |> Graph.add_edge(1, 2, 1.0)

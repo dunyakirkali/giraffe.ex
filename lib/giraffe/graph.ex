@@ -14,8 +14,26 @@ defmodule Giraffe.Graph do
           impl: Giraffe.Graph.Directed.t() | Giraffe.Graph.Undirected.t()
         }
 
-  def new(:directed), do: %__MODULE__{type: :directed, impl: Giraffe.Graph.Directed.new()}
-  def new(:undirected), do: %__MODULE__{type: :undirected, impl: Giraffe.Graph.Undirected.new()}
+  @doc """
+  Creates a new graph.
+
+  ## Options
+    * `:type` - The type of graph. Can be `:directed` or `:undirected`. Defaults to `:directed`.
+
+  ## Examples
+
+      iex> Giraffe.Graph.new(type: :directed)
+      %Giraffe.Graph{impl: %Giraffe.Graph.Directed{vertices: MapSet.new([]), edges: %{}}, type: :directed}
+
+      iex> Giraffe.Graph.new(type: :undirected)
+      %Giraffe.Graph{impl: %Giraffe.Graph.Undirected{vertices: MapSet.new([]), edges: %{}}, type: :undirected}
+  """
+  @spec new(map()) :: t()
+  def new(type: :directed),
+    do: %__MODULE__{type: :directed, impl: Giraffe.Graph.Directed.new()}
+
+  def new(type: :undirected),
+    do: %__MODULE__{type: :undirected, impl: Giraffe.Graph.Undirected.new()}
 
   def add_vertex(%__MODULE__{type: type, impl: impl} = graph, vertex) do
     %{graph | impl: apply_impl(type, :add_vertex, [impl, vertex])}
