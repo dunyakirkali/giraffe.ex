@@ -28,7 +28,7 @@ defmodule Giraffe.Graph do
       iex> Giraffe.Graph.new(type: :undirected)
       %Giraffe.Graph{impl: %Giraffe.Graph.Undirected{vertices: MapSet.new([]), edges: %{}}, type: :undirected}
   """
-  @spec new(map()) :: t()
+  @spec new(keyword()) :: t()
   def new(type: :directed),
     do: %__MODULE__{type: :directed, impl: Giraffe.Graph.Directed.new()}
 
