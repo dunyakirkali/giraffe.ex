@@ -110,6 +110,7 @@ defmodule Giraffe.Graph.Base do
           end
         end)
         |> MapSet.to_list()
+        |> Enum.sort()
       end
 
       defp do_reachable(graph, vertex, visited, acc) do

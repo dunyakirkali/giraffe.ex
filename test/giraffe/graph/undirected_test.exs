@@ -1,5 +1,6 @@
 defmodule Giraffe.Graph.UndirectedTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
+  doctest Giraffe.Graph.Undirected
 
   alias Giraffe.Graph.Undirected, as: Graph
 

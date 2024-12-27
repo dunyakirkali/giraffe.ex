@@ -1,5 +1,6 @@
 defmodule Giraffe.Graph.BaseTest do
   use ExUnit.Case, async: true
+  doctest Giraffe.Graph.Base
 
   # Test helper module that implements Graph.Base
   defmodule TestGraph do
