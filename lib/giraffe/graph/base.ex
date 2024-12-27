@@ -103,12 +103,15 @@ defmodule Giraffe.Graph.Base do
       def reachable(graph, vertices) do
         vertices
         |> Enum.reduce(MapSet.new(), fn vertex, acc ->
-          do_reachable(graph, vertex, MapSet.new(), acc)
+          if MapSet.member?(graph.vertices, vertex) do
+            do_reachable(graph, vertex, MapSet.new(), acc)
+          else
+            acc
+          end
         end)
         |> MapSet.to_list()
       end
 
-      @spec do_reachable(t(), vertex(), MapSet.t(), MapSet.t()) :: MapSet.t()
       defp do_reachable(graph, vertex, visited, acc) do
         if MapSet.member?(visited, vertex) do
           acc
@@ -118,7 +121,11 @@ defmodule Giraffe.Graph.Base do
 
           neighbors(graph, vertex)
           |> Enum.reduce(acc, fn neighbor, new_acc ->
-            do_reachable(graph, neighbor, visited, new_acc)
+            if MapSet.member?(graph.vertices, neighbor) do
+              do_reachable(graph, neighbor, visited, new_acc)
+            else
+              new_acc
+            end
           end)
         end
       end
