@@ -25,7 +25,7 @@ defmodule Giraffe.MixProject do
     [
       files: ["test", "lib", "mix.exs", "README.md", "LICENSE*"],
       maintainers: ["Dunya Kirkali"],
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       links: %{"GitHub" => "https://github.com/dunyakirkali/giraffe.ex"}
     ]
   end
