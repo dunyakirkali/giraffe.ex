@@ -39,7 +39,7 @@ defmodule Giraffe.Graph do
     %{graph | impl: apply_impl(type, :add_vertex, [impl, vertex])}
   end
 
-  def add_edge(%__MODULE__{type: type, impl: impl} = graph, from, to, weight) do
+  def add_edge(%__MODULE__{type: type, impl: impl} = graph, from, to, weight \\ 1) do
     %{graph | impl: apply_impl(type, :add_edge, [impl, from, to, weight])}
   end
 
