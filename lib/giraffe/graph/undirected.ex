@@ -134,6 +134,40 @@ defmodule Giraffe.Graph.Undirected do
     end
   end
 
+  @doc """
+  Returns a list of vertices that are reachable from any of the given vertices.
+  Includes the starting vertices themselves as paths of length zero are allowed.
+
+  ## Examples
+
+      iex> g = Giraffe.Graph.Undirected.new()
+      ...> g = g |> Giraffe.Graph.Undirected.add_edge(1, 2, 1) |> Giraffe.Graph.Undirected.add_edge(2, 3, 1)
+      ...> Giraffe.Graph.Undirected.reachable(g, [1])
+      [1, 2, 3]
+  """
+  @spec reachable(t(), [vertex()]) :: [vertex()]
+  def reachable(graph, vertices) do
+    vertices
+    |> Enum.reduce(MapSet.new(), fn vertex, acc ->
+      do_reachable(graph, vertex, MapSet.new(), acc)
+    end)
+    |> MapSet.to_list()
+  end
+
+  defp do_reachable(graph, vertex, visited, acc) do
+    if MapSet.member?(visited, vertex) do
+      acc
+    else
+      visited = MapSet.put(visited, vertex)
+      acc = MapSet.put(acc, vertex)
+
+      neighbors(graph, vertex)
+      |> Enum.reduce(acc, fn neighbor, new_acc ->
+        do_reachable(graph, neighbor, visited, new_acc)
+      end)
+    end
+  end
+
   defp get_neighbors(v, %__MODULE__{edges: edges}) do
     edges
     |> Map.get(v, %{})

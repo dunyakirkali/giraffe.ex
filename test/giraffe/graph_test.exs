@@ -41,4 +41,51 @@ defmodule GraphTest do
       assert Graph.edges(graph) == [{1, 2, 1.0}]
     end
   end
+
+  describe "reachable/2" do
+    test "directed graph - simple path" do
+      g = Giraffe.Graph.new(type: :directed)
+
+      g =
+        g
+        |> Giraffe.Graph.add_edge(1, 2)
+        |> Giraffe.Graph.add_edge(2, 3)
+        |> Giraffe.Graph.add_edge(3, 4)
+
+      assert Giraffe.Graph.reachable(g, [1]) |> Enum.sort() == [1, 2, 3, 4]
+    end
+
+    test "directed graph - multiple components" do
+      g = Giraffe.Graph.new(type: :directed)
+
+      g =
+        g
+        |> Giraffe.Graph.add_edge(1, 2)
+        |> Giraffe.Graph.add_edge(3, 4)
+
+      assert Giraffe.Graph.reachable(g, [1, 3]) |> Enum.sort() == [1, 2, 3, 4]
+    end
+
+    test "undirected graph - bidirectional traversal" do
+      g = Giraffe.Graph.new(type: :undirected)
+
+      g =
+        g
+        |> Giraffe.Graph.add_edge(1, 2)
+        |> Giraffe.Graph.add_edge(2, 3)
+
+      assert Giraffe.Graph.reachable(g, [3]) |> Enum.sort() == [1, 2, 3]
+    end
+
+    test "undirected graph - multiple start vertices" do
+      g = Giraffe.Graph.new(type: :undirected)
+
+      g =
+        g
+        |> Giraffe.Graph.add_edge(1, 2)
+        |> Giraffe.Graph.add_edge(4, 5)
+
+      assert Giraffe.Graph.reachable(g, [1, 4]) |> Enum.sort() == [1, 2, 4, 5]
+    end
+  end
 end

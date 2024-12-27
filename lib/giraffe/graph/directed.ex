@@ -199,6 +199,35 @@ defmodule Giraffe.Graph.Directed do
     {new_visited, [vertex | new_result]}
   end
 
+  @spec reachable(t(), [Giraffe.Graph.vertex()]) :: [Giraffe.Graph.vertex()]
+  def reachable(graph, vertices) do
+    vertices
+    |> Enum.reduce(MapSet.new(), fn vertex, acc ->
+      do_reachable(graph, vertex, MapSet.new(), acc)
+    end)
+    |> MapSet.to_list()
+  end
+
+  defp do_reachable(graph, vertex, visited, acc) do
+    if MapSet.member?(visited, vertex) do
+      acc
+    else
+      visited = MapSet.put(visited, vertex)
+      acc = MapSet.put(acc, vertex)
+
+      neighbors = get_neighbors(graph, vertex)
+
+      Enum.reduce(neighbors, acc, fn neighbor, new_acc ->
+        do_reachable(graph, neighbor, visited, new_acc)
+      end)
+    end
+  end
+
+  defp get_neighbors(graph, vertex) do
+    Map.get(graph.edges, vertex, [])
+    |> Enum.map(fn {v, _weight} -> v end)
+  end
+
   # Private Functions
 
   defp recurse_vertices([], _visited, _edges), do: true
