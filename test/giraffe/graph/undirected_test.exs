@@ -408,4 +408,240 @@ defmodule Giraffe.Graph.UndirectedTest do
       assert Graph.get_label(graph, 2) == "End"
     end
   end
+
+  describe "bellman_ford/2" do
+    test "finds shortest paths from source vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 2)
+        |> Graph.add_edge(:a, :c, 5)
+
+      distances = Graph.bellman_ford(graph, :a)
+      assert distances[:a] == 0
+      assert distances[:b] == 1
+      assert distances[:c] == 3
+    end
+
+    test "handles disconnected components" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_vertex(:c)
+
+      distances = Graph.bellman_ford(graph, :a)
+      assert distances[:a] == 0
+      assert distances[:b] == 1
+      assert distances[:c] == :infinity
+    end
+
+    test "returns nil for negative cycles" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, -3)
+        |> Graph.add_edge(:c, :a, 1)
+
+      assert Graph.bellman_ford(graph, :a) == nil
+    end
+  end
+
+  describe "edges/2" do
+    test "returns all edges connected to vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:a, :c, 2)
+
+      edges = Graph.edges(graph, :a)
+      assert length(edges) == 2
+      assert {:a, :b, 1} in edges
+      assert {:a, :c, 2} in edges
+    end
+
+    test "returns edges regardless of direction specified at creation" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:b, :a, 1)
+
+      edges = Graph.edges(graph, :a)
+      assert edges == [{:a, :b, 1}]
+    end
+
+    test "returns empty list for isolated vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+
+      assert Graph.edges(graph, :a) == []
+    end
+
+    test "returns empty list for non-existent vertex" do
+      graph = Graph.new()
+      assert Graph.edges(graph, :a) == []
+    end
+  end
+
+  describe "shortest_paths/2" do
+    test "finds shortest paths in connected graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 2)
+        |> Graph.add_edge(:a, :c, 5)
+
+      assert Graph.shortest_paths(graph, :a) == {:ok, %{a: 0, b: 1, c: 3}}
+    end
+
+    test "handles unreachable vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_vertex(:c)
+
+      {:ok, distances} = Graph.shortest_paths(graph, :a)
+      assert distances[:a] == 0
+      assert distances[:b] == 1
+      assert distances[:c] == :infinity
+    end
+
+    test "detects negative cycles" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, -3)
+        |> Graph.add_edge(:c, :a, 1)
+
+      assert Graph.shortest_paths(graph, :a) == {:error, :negative_cycle}
+    end
+  end
+
+  describe "vertex operations" do
+    test "get_label returns nil for non-existent vertex" do
+      graph = Graph.new()
+      assert Graph.get_label(graph, :a) == nil
+    end
+
+    test "set_label is idempotent" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a, "First")
+        |> Graph.set_label(:a, "First")
+
+      assert Graph.get_label(graph, :a) == "First"
+    end
+
+    test "add_vertex preserves existing edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_vertex(:a, "New Label")
+
+      assert Graph.edges(graph, :a) == [{:a, :b, 1}]
+      assert Graph.get_label(graph, :a) == "New Label"
+    end
+  end
+
+  describe "reachable vertices" do
+    test "includes all vertices in connected component" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 1)
+        |> Graph.add_vertex(:d)
+
+      assert Enum.sort(Graph.reachable(graph, [:a])) == [:a, :b, :c]
+    end
+
+    test "handles multiple starting vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:c, :d, 1)
+
+      assert Enum.sort(Graph.reachable(graph, [:a, :c])) == [:a, :b, :c, :d]
+    end
+
+    test "returns only starting vertex if isolated" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+
+      assert Graph.reachable(graph, [:a]) == [:a]
+    end
+
+    test "handles empty starting set" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+
+      assert Graph.reachable(graph, []) == []
+    end
+  end
+
+  describe "edge weight operations" do
+    test "updates edge weight" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:a, :b, 2)
+
+      assert Graph.edges(graph) == [{:a, :b, 2}]
+    end
+
+    test "maintains symmetry when updating weights" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :a, 2)
+
+      edges = Graph.edges(graph)
+      assert length(edges) == 1
+      assert {:a, :b, 2} in edges
+    end
+  end
+
+  describe "graph properties" do
+    test "empty graph is acyclic" do
+      assert Graph.is_acyclic?(Graph.new())
+    end
+
+    test "single edge is acyclic" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+
+      assert Graph.is_acyclic?(graph)
+    end
+
+    test "isolated vertices are acyclic" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+
+      assert Graph.is_acyclic?(graph)
+    end
+
+    test "triangle is cyclic" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 1)
+        |> Graph.add_edge(:c, :a, 1)
+
+      assert Graph.is_cyclic?(graph)
+    end
+
+    test "path with multiple vertices is acyclic" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 1)
+        |> Graph.add_edge(:c, :d, 1)
+
+      assert Graph.is_acyclic?(graph)
+    end
+  end
 end

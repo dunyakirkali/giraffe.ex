@@ -10,8 +10,14 @@ defmodule Giraffe.Graph.Undirected do
   Adds an edge between two vertices with the given weight.
   If the vertices don't exist, they will be added to the graph.
   """
-  @spec add_edge(t(), vertex(), vertex(), weight()) :: t()
-  def add_edge(graph, v1, v2, weight \\ 1) do
+  @spec add_edge(t(), vertex(), vertex(), number() | keyword()) :: t()
+  def add_edge(graph, v1, v2, opts_or_weight \\ 1) do
+    weight =
+      case opts_or_weight do
+        opts when is_list(opts) -> Keyword.get(opts, :weight, 1)
+        weight when is_number(weight) -> weight
+      end
+
     graph = add_vertex(graph, v1)
     graph = add_vertex(graph, v2)
 
@@ -25,18 +31,68 @@ defmodule Giraffe.Graph.Undirected do
   end
 
   @doc """
-  Returns a list of all edges in the graph.
-  Each edge is represented as a tuple {from, to, weight}.
+  Returns a list of all edges in the graph as tuples of {from, to, weight}.
+
+  ## Examples
+
+      iex> graph = Giraffe.Graph.Undirected.new()
+      ...> graph = Giraffe.Graph.Undirected.add_edge(graph, :a, :b, 1)
+      ...> Giraffe.Graph.Undirected.edges(graph)
+      [{:a, :b, 1}]
   """
-  @spec edges(t()) :: [edge()]
-  def edges(graph) do
-    graph.edges
-    |> Enum.flat_map(fn {v1, edges} ->
-      Enum.map(edges, fn {v2, weight} ->
+  @spec edges(t()) :: [{vertex(), vertex(), number()}]
+  def edges(%__MODULE__{edges: edges}) do
+    edges
+    |> Enum.flat_map(fn {v1, targets} ->
+      Enum.map(targets, fn {v2, weight} ->
         if v1 <= v2, do: {v1, v2, weight}, else: {v2, v1, weight}
       end)
     end)
     |> Enum.uniq()
+  end
+
+  @doc """
+  Returns a list of all edges for a specific vertex.
+
+  ## Examples
+
+      iex> graph = Giraffe.Graph.Undirected.new()
+      ...> graph = Giraffe.Graph.Undirected.add_edge(graph, :a, :b, 1)
+      ...> Giraffe.Graph.Undirected.edges(graph, :a)
+      [{:a, :b, 1}]
+  """
+  @spec edges(t(), vertex()) :: [{vertex(), vertex(), number()}]
+  def edges(%__MODULE__{edges: edges}, vertex) do
+    case Map.get(edges, vertex) do
+      nil ->
+        []
+
+      targets ->
+        Enum.map(targets, fn {other_vertex, weight} ->
+          if vertex <= other_vertex,
+            do: {vertex, other_vertex, weight},
+            else: {other_vertex, vertex, weight}
+        end)
+    end
+  end
+
+  @doc """
+  Finds shortest paths from a source vertex using the Bellman-Ford algorithm.
+  Returns nil if a negative cycle is detected.
+
+  ## Examples
+
+      iex> graph = Giraffe.Graph.Undirected.new()
+      ...> graph = graph |> Giraffe.Graph.Undirected.add_edge(:a, :b, 1)
+      ...> graph |> Giraffe.Graph.Undirected.bellman_ford(:a)
+      %{a: 0, b: 1}
+  """
+  @spec bellman_ford(t(), vertex()) :: %{vertex() => number()} | nil
+  def bellman_ford(graph, source) do
+    case shortest_paths(graph, source) do
+      {:ok, distances} -> distances
+      {:error, :negative_cycle} -> nil
+    end
   end
 
   @doc """

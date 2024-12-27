@@ -24,20 +24,23 @@ defmodule Giraffe.Graph.Directed do
       ...> Giraffe.Graph.Directed.edges(graph)
       [{:a, :b, 1}]
   """
-  @spec add_edge(t(), vertex(), vertex(), weight()) :: t()
-  def add_edge(%__MODULE__{edges: edges, vertices: vertices} = graph, from, to, weight) do
-    new_vertices =
-      vertices
-      |> MapSet.put(from)
-      |> MapSet.put(to)
+  @spec add_edge(t(), vertex(), vertex(), number() | keyword()) :: t()
+  def add_edge(graph, v1, v2, opts_or_weight \\ 1) do
+    weight =
+      case opts_or_weight do
+        opts when is_list(opts) -> Keyword.get(opts, :weight, 1)
+        weight when is_number(weight) -> weight
+      end
 
-    new_edges =
-      Map.update(edges, from, %{to => weight}, fn map ->
-        Map.put(map, to, weight)
-      end)
+    graph = add_vertex(graph, v1)
+    graph = add_vertex(graph, v2)
 
-    %{graph | edges: new_edges, vertices: new_vertices}
+    %{graph | edges: Map.update(graph.edges, v1, %{v2 => weight}, &Map.put(&1, v2, weight))}
   end
+
+  @doc "Gets the shortest path between a and b using Dijkstra's algorithm"
+  @spec dijkstra(t(), vertex(), vertex()) :: {:ok, [vertex()], number()} | :no_path
+  def dijkstra(graph, a, b), do: get_shortest_path(graph, a, b)
 
   @doc """
   Returns a list of all edges in the graph as tuples of {from, to, weight}.
@@ -45,16 +48,53 @@ defmodule Giraffe.Graph.Directed do
   ## Examples
 
       iex> graph = Giraffe.Graph.Directed.new()
-      ...> graph = graph |> Giraffe.Graph.Directed.add_edge(:a, :b, 1)
+      ...> graph = Giraffe.Graph.Directed.add_edge(graph, :a, :b, 1)
       ...> Giraffe.Graph.Directed.edges(graph)
       [{:a, :b, 1}]
   """
-  @spec edges(t()) :: [edge()]
+  @spec edges(t()) :: [{vertex(), vertex(), number()}]
   def edges(%__MODULE__{edges: edges}) do
     edges
     |> Enum.flat_map(fn {from, targets} ->
       Enum.map(targets, fn {to, weight} -> {from, to, weight} end)
     end)
+  end
+
+  @doc """
+  Returns a list of all edges for a specific vertex.
+
+  ## Examples
+
+      iex> graph = Giraffe.Graph.Directed.new()
+      ...> graph = Giraffe.Graph.Directed.add_edge(graph, :a, :b, 1)
+      ...> Giraffe.Graph.Directed.edges(graph, :a)
+      [{:a, :b, 1}]
+  """
+  @spec edges(t(), vertex()) :: [{vertex(), vertex(), number()}]
+  def edges(%__MODULE__{edges: edges}, vertex) do
+    outgoing =
+      Map.get(edges, vertex, %{})
+      |> Enum.map(fn {to, weight} -> {vertex, to, weight} end)
+
+    incoming =
+      edges
+      |> Enum.flat_map(fn {from, targets} ->
+        case Map.get(targets, vertex) do
+          nil -> []
+          weight -> [{from, vertex, weight}]
+        end
+      end)
+
+    outgoing ++ incoming
+  end
+
+  @doc "Finds shortest paths using Bellman-Ford algorithm"
+  @spec bellman_ford(t(), vertex()) :: %{vertex() => number()} | nil
+  def bellman_ford(graph, source) do
+    case shortest_paths(graph, source) do
+      {:ok, distances} -> distances
+      {:error, :negative_cycle} -> nil
+    end
   end
 
   @doc """

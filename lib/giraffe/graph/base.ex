@@ -22,8 +22,8 @@ defmodule Giraffe.Graph.Base do
           iex> Giraffe.Graph.Directed.new()
           %Giraffe.Graph.Directed{vertices: MapSet.new(), edges: %{}, labels: %{}}
       """
-      @spec new() :: t()
-      def new, do: %__MODULE__{}
+      @spec new(keyword()) :: t()
+      def new(_opts \\ []), do: %__MODULE__{}
 
       @doc """
       Adds a vertex to the graph with an optional label.
@@ -34,14 +34,19 @@ defmodule Giraffe.Graph.Base do
           iex> Giraffe.Graph.Directed.add_vertex(graph, :a, "vertex A")
           %Giraffe.Graph.Directed{vertices: MapSet.new([:a]), edges: %{}, labels: %{a: "vertex A"}}
       """
-      @spec add_vertex(t(), vertex(), label :: any()) :: t()
-      def add_vertex(graph, vertex, label \\ nil) do
+      @spec add_vertex(t(), vertex(), [any()]) :: t()
+      def add_vertex(graph, vertex, labels \\ []) do
         %{
           graph
           | vertices: MapSet.put(graph.vertices, vertex),
-            labels: if(label, do: Map.put(graph.labels, vertex, label), else: graph.labels)
+            labels:
+              if(labels != [], do: Map.put(graph.labels, vertex, labels), else: graph.labels)
         }
       end
+
+      @doc "Returns true if the given vertex exists in the graph."
+      @spec has_vertex?(t(), vertex()) :: boolean()
+      def has_vertex?(graph, vertex), do: MapSet.member?(graph.vertices, vertex)
 
       @doc """
       Gets the label associated with a vertex.
@@ -87,6 +92,24 @@ defmodule Giraffe.Graph.Base do
       """
       @spec vertices(t()) :: [vertex()]
       def vertices(%__MODULE__{vertices: vertices}), do: MapSet.to_list(vertices)
+
+      @doc "Returns the number of vertices in the graph"
+      @spec num_vertices(t()) :: non_neg_integer()
+      def num_vertices(graph), do: MapSet.size(graph.vertices)
+
+      @doc "Returns the number of edges in the graph"
+      @spec num_edges(t()) :: non_neg_integer()
+      def num_edges(graph) do
+        Enum.reduce(graph.edges, 0, fn {_, edges}, acc ->
+          acc + map_size(edges)
+        end)
+      end
+
+      @doc "Returns the label for the given vertex"
+      @spec vertex_labels(t(), vertex()) :: [any()]
+      def vertex_labels(graph, vertex) do
+        Map.get(graph.labels, vertex, [])
+      end
 
       @doc """
       Returns a list of all vertices reachable from the given starting vertices.

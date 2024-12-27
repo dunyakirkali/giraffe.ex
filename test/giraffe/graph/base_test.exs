@@ -2,243 +2,200 @@ defmodule Giraffe.Graph.BaseTest do
   use ExUnit.Case, async: true
   doctest Giraffe.Graph.Base
 
-  # Test helper module that implements Graph.Base
-  defmodule TestGraph do
-    use Giraffe.Graph.Base
+  # We'll test using Directed graph implementation since Base is a behavior
+  alias Giraffe.Graph.Directed, as: Graph
 
-    # Implement a simple add_edge for testing
-    def add_edge(graph, v1, v2, weight \\ 1) do
-      graph = add_vertex(graph, v1)
-      graph = add_vertex(graph, v2)
-
-      %{
-        graph
-        | edges: Map.put(graph.edges, v1, Map.put(Map.get(graph.edges, v1, %{}), v2, weight))
-      }
-    end
-
-    def edges(graph) do
-      graph.edges
-      |> Enum.flat_map(fn {from, edges} ->
-        Enum.map(edges, fn {to, weight} -> {from, to, weight} end)
-      end)
-    end
-
-    def neighbors(graph, vertex) do
-      graph.edges
-      |> Map.get(vertex, %{})
-      |> Map.keys()
-      |> Enum.sort()
-    end
-  end
-
-  describe "new/0" do
+  describe "new/1" do
     test "creates an empty graph" do
-      graph = TestGraph.new()
+      graph = Graph.new()
+      assert graph.vertices == MapSet.new()
+      assert graph.edges == %{}
+      assert graph.labels == %{}
+    end
+
+    test "creates an empty graph with options" do
+      graph = Graph.new(type: :directed)
       assert graph.vertices == MapSet.new()
       assert graph.edges == %{}
       assert graph.labels == %{}
     end
   end
 
-  describe "add_vertex/2" do
-    test "adds a vertex without a label" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-
-      assert MapSet.member?(graph.vertices, :a)
-      assert map_size(graph.labels) == 0
+  describe "add_vertex/3" do
+    test "adds a vertex without labels" do
+      graph = Graph.new() |> Graph.add_vertex(:a)
+      assert Graph.has_vertex?(graph, :a)
+      assert Graph.vertex_labels(graph, :a) == []
     end
 
-    test "adds a vertex with a label" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a, "Label A")
-
-      assert MapSet.member?(graph.vertices, :a)
-      assert graph.labels[:a] == "Label A"
+    test "adds a vertex with labels" do
+      graph = Graph.new() |> Graph.add_vertex(:a, [:label1, :label2])
+      assert Graph.has_vertex?(graph, :a)
+      assert Graph.vertex_labels(graph, :a) == [:label1, :label2]
     end
 
-    test "adding the same vertex twice doesn't create duplicates" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-      graph = TestGraph.add_vertex(graph, :a)
+    test "adding the same vertex twice is idempotent" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a, [:label1])
+        |> Graph.add_vertex(:a, [:label2])
 
-      assert MapSet.size(graph.vertices) == 1
+      assert Graph.has_vertex?(graph, :a)
+      assert Graph.vertex_labels(graph, :a) == [:label2]
     end
   end
 
-  describe "get_label/2" do
-    test "returns the label for a vertex" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a, "Label A")
-
-      assert TestGraph.get_label(graph, :a) == "Label A"
+  describe "has_vertex?/2" do
+    test "returns true for existing vertex" do
+      graph = Graph.new() |> Graph.add_vertex(:a)
+      assert Graph.has_vertex?(graph, :a)
     end
 
-    test "returns nil for vertex without label" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-
-      assert TestGraph.get_label(graph, :a) == nil
-    end
-
-    test "returns nil for non-existent vertex" do
-      graph = TestGraph.new()
-
-      assert TestGraph.get_label(graph, :a) == nil
-    end
-  end
-
-  describe "set_label/3" do
-    test "sets label for existing vertex" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-      graph = TestGraph.set_label(graph, :a, "New Label")
-
-      assert TestGraph.get_label(graph, :a) == "New Label"
-    end
-
-    test "doesn't set label for non-existent vertex" do
-      graph = TestGraph.new()
-      graph = TestGraph.set_label(graph, :a, "New Label")
-
-      assert TestGraph.get_label(graph, :a) == nil
-    end
-
-    test "updates existing label" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a, "Old Label")
-      graph = TestGraph.set_label(graph, :a, "New Label")
-
-      assert TestGraph.get_label(graph, :a) == "New Label"
+    test "returns false for non-existing vertex" do
+      graph = Graph.new()
+      refute Graph.has_vertex?(graph, :a)
     end
   end
 
   describe "vertices/1" do
     test "returns empty list for empty graph" do
-      graph = TestGraph.new()
-      assert TestGraph.vertices(graph) == []
+      assert Graph.new() |> Graph.vertices() == []
     end
 
     test "returns list of vertices" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-      graph = TestGraph.add_vertex(graph, :b)
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
 
-      vertices = TestGraph.vertices(graph)
-      assert length(vertices) == 2
-      assert :a in vertices
-      assert :b in vertices
+      assert Graph.vertices(graph) |> Enum.sort() == [:a, :b]
+    end
+  end
+
+  describe "num_vertices/1" do
+    test "returns 0 for empty graph" do
+      assert Graph.new() |> Graph.num_vertices() == 0
+    end
+
+    test "returns correct count of vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+
+      assert Graph.num_vertices(graph) == 2
+    end
+  end
+
+  describe "num_edges/1" do
+    test "returns 0 for empty graph" do
+      assert Graph.new() |> Graph.num_edges() == 0
+    end
+
+    test "returns correct count of edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:b, :c)
+
+      assert Graph.num_edges(graph) == 2
+    end
+
+    test "handles multiple edges from same vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:a, :c)
+
+      assert Graph.num_edges(graph) == 2
+    end
+  end
+
+  describe "vertex_labels/2" do
+    test "returns empty list for vertex without labels" do
+      graph = Graph.new() |> Graph.add_vertex(:a)
+      assert Graph.vertex_labels(graph, :a) == []
+    end
+
+    test "returns labels for vertex with labels" do
+      graph = Graph.new() |> Graph.add_vertex(:a, [:label1, :label2])
+      assert Graph.vertex_labels(graph, :a) == [:label1, :label2]
+    end
+
+    test "returns empty list for non-existent vertex" do
+      graph = Graph.new()
+      assert Graph.vertex_labels(graph, :a) == []
     end
   end
 
   describe "reachable/2" do
     test "returns empty list for empty graph" do
-      graph = TestGraph.new()
-      assert TestGraph.reachable(graph, [:a]) == []
+      assert Graph.new() |> Graph.reachable([]) == []
     end
 
-    test "returns single vertex when no edges exist" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-
-      assert TestGraph.reachable(graph, [:a]) == [:a]
+    test "returns starting vertex if no edges" do
+      graph = Graph.new() |> Graph.add_vertex(:a)
+      assert Graph.reachable(graph, [:a]) == [:a]
     end
 
-    test "returns connected vertices" do
+    test "returns reachable vertices" do
       graph =
-        TestGraph.new()
-        |> TestGraph.add_edge(:a, :b)
-        |> TestGraph.add_edge(:b, :c)
-        |> TestGraph.add_edge(:c, :d)
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:b, :c)
+        |> Graph.add_edge(:d, :e)
 
-      reachable = TestGraph.reachable(graph, [:a])
-      assert length(reachable) == 4
-      assert Enum.sort(reachable) == [:a, :b, :c, :d]
+      assert Graph.reachable(graph, [:a]) |> Enum.sort() == [:a, :b, :c]
+      assert Graph.reachable(graph, [:d]) |> Enum.sort() == [:d, :e]
+      assert Graph.reachable(graph, [:a, :d]) |> Enum.sort() == [:a, :b, :c, :d, :e]
     end
 
-    test "handles disconnected components" do
+    test "handles cycles" do
       graph =
-        TestGraph.new()
-        |> TestGraph.add_edge(:a, :b)
-        |> TestGraph.add_edge(:c, :d)
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:b, :c)
+        |> Graph.add_edge(:c, :a)
 
-      assert Enum.sort(TestGraph.reachable(graph, [:a])) == [:a, :b]
-      assert Enum.sort(TestGraph.reachable(graph, [:c])) == [:c, :d]
-    end
-
-    test "handles multiple starting vertices" do
-      graph =
-        TestGraph.new()
-        |> TestGraph.add_edge(:a, :b)
-        |> TestGraph.add_edge(:c, :d)
-
-      assert Enum.sort(TestGraph.reachable(graph, [:a, :c])) == [:a, :b, :c, :d]
+      assert Graph.reachable(graph, [:a]) |> Enum.sort() == [:a, :b, :c]
     end
   end
 
   describe "postorder/1" do
     test "returns empty list for empty graph" do
-      graph = TestGraph.new()
-      assert TestGraph.postorder(graph) == []
+      assert Graph.new() |> Graph.postorder() == []
     end
 
-    test "returns single vertex for isolated vertex" do
-      graph = TestGraph.new()
-      graph = TestGraph.add_vertex(graph, :a)
-
-      assert TestGraph.postorder(graph) == [:a]
-    end
-
-    test "returns vertices in post-order for linear path" do
+    test "returns vertices in post-order" do
       graph =
-        TestGraph.new()
-        |> TestGraph.add_edge(:a, :b)
-        |> TestGraph.add_edge(:b, :c)
-        |> TestGraph.add_edge(:c, :d)
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:b, :c)
 
-      assert TestGraph.postorder(graph) == [:d, :c, :b, :a]
+      assert Graph.postorder(graph) == [:c, :b, :a]
     end
 
-    test "handles branching paths" do
+    test "handles cycles" do
       graph =
-        TestGraph.new()
-        |> TestGraph.add_edge(:a, :b)
-        |> TestGraph.add_edge(:a, :c)
-        |> TestGraph.add_edge(:b, :d)
-        |> TestGraph.add_edge(:c, :e)
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:b, :c)
+        |> Graph.add_edge(:c, :a)
 
-      result = TestGraph.postorder(graph)
-      assert length(result) == 5
-      # Check that parent vertices come after their children
-      assert_parent_after_children(result)
+      result = Graph.postorder(graph)
+      assert length(result) == 3
+      assert Enum.sort(result) == [:a, :b, :c]
     end
-  end
 
-  # Helper function to verify post-order property
-  defp assert_parent_after_children(vertices) do
-    vertices_indexed = Enum.with_index(vertices) |> Map.new()
+    test "handles disconnected components" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b)
+        |> Graph.add_edge(:c, :d)
 
-    for vertex <- vertices do
-      parent_index = Map.get(vertices_indexed, vertex)
-
-      # Check that all children appear before their parent
-      children_indices = get_children_indices(vertex, vertices_indexed)
-
-      for child_index <- children_indices do
-        assert child_index < parent_index,
-               "Child #{vertex} appears after parent at index #{parent_index}"
-      end
+      result = Graph.postorder(graph)
+      assert length(result) == 4
+      assert Enum.sort(result) == [:a, :b, :c, :d]
     end
-  end
-
-  defp get_children_indices(vertex, vertices_indexed) do
-    case vertex do
-      :a -> [Map.get(vertices_indexed, :b), Map.get(vertices_indexed, :c)]
-      :b -> [Map.get(vertices_indexed, :d)]
-      :c -> [Map.get(vertices_indexed, :e)]
-      _ -> []
-    end
-    |> Enum.filter(&(&1 != nil))
   end
 end

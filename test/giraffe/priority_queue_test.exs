@@ -1,5 +1,5 @@
 defmodule Giraffe.PriorityQueueTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   doctest Giraffe.PriorityQueue
 
   alias Giraffe.PriorityQueue, as: PriorityQueue

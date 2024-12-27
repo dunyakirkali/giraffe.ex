@@ -332,4 +332,138 @@ defmodule Giraffe.Graph.DirectedTest do
       assert Graph.get_label(graph, 2) == "End"
     end
   end
+
+  describe "bellman_ford/2" do
+    test "finds shortest paths from source in acyclic graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 2)
+        |> Graph.add_edge(:a, :c, 5)
+
+      distances = Graph.bellman_ford(graph, :a)
+      assert distances[:a] == 0
+      assert distances[:b] == 1
+      assert distances[:c] == 3
+    end
+
+    test "returns nil when negative cycle exists" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, -3)
+        |> Graph.add_edge(:c, :a, 1)
+
+      assert Graph.bellman_ford(graph, :a) == nil
+    end
+  end
+
+  describe "edges/2" do
+    test "returns edges for specific vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:a, :c, 2)
+        |> Graph.add_edge(:b, :a, 3)
+
+      edges = Graph.edges(graph, :a)
+      assert length(edges) == 3
+      assert {:a, :b, 1} in edges
+      assert {:a, :c, 2} in edges
+      assert {:b, :a, 3} in edges
+    end
+
+    test "returns empty list for vertex with no edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+
+      assert Graph.edges(graph, :a) == []
+    end
+  end
+
+  describe "dijkstra/3" do
+    test "finds shortest path using Dijkstra's algorithm" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 2)
+
+      assert Graph.dijkstra(graph, :a, :c) == {:ok, [:a, :b, :c], 3}
+    end
+
+    test "returns :no_path when no path exists" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+
+      assert Graph.dijkstra(graph, :a, :b) == :no_path
+    end
+  end
+
+  describe "cliques/1" do
+    test "finds maximal cliques in directed graph" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :a, 1)
+        |> Graph.add_edge(:b, :c, 1)
+        |> Graph.add_edge(:c, :b, 1)
+        |> Graph.add_edge(:c, :a, 1)
+        |> Graph.add_edge(:a, :c, 1)
+
+      cliques = Graph.cliques(graph)
+      assert length(cliques) == 1
+      assert Enum.sort(hd(cliques)) == [:a, :b, :c]
+    end
+
+    test "handles graph with only directed edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+
+      cliques = Graph.cliques(graph)
+      assert length(cliques) == 2
+      # Each vertex is a 1-vertex clique
+      assert Enum.sort(cliques) == [[:a], [:b]]
+    end
+
+    test "handles isolated vertices" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(:a)
+        |> Graph.add_vertex(:b)
+
+      cliques = Graph.cliques(graph)
+      assert length(cliques) == 2
+      assert Enum.sort(cliques) == [[:a], [:b]]
+    end
+
+    test "handles empty graph" do
+      graph = Graph.new()
+      assert Graph.cliques(graph) == []
+    end
+  end
+
+  describe "shortest_paths/2" do
+    test "finds shortest paths from source vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, 2)
+
+      assert Graph.shortest_paths(graph, :a) == {:ok, %{a: 0, b: 1, c: 3}}
+    end
+
+    test "detects negative cycles" do
+      graph =
+        Graph.new()
+        |> Graph.add_edge(:a, :b, 1)
+        |> Graph.add_edge(:b, :c, -3)
+        |> Graph.add_edge(:c, :a, 1)
+
+      assert Graph.shortest_paths(graph, :a) == {:error, :negative_cycle}
+    end
+  end
 end
