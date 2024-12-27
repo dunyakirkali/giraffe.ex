@@ -4,46 +4,7 @@ defmodule Giraffe.Graph.Directed do
   Vertices can be any term, and edges have numeric weights.
   """
 
-  defstruct vertices: MapSet.new(), edges: %{}, labels: %{}
-
-  @type vertex :: any()
-  @type weight :: number()
-  @type edge :: {vertex(), vertex(), weight()}
-  @type t :: %__MODULE__{
-          vertices: MapSet.t(),
-          edges: %{vertex() => %{vertex() => weight()}},
-          labels: map()
-        }
-
-  @doc """
-  Creates a new empty directed graph.
-  """
-  @spec new() :: t()
-  def new, do: %__MODULE__{}
-
-  @doc """
-  Adds a vertex to the graph.
-  """
-  @spec add_vertex(t(), vertex()) :: t()
-  def add_vertex(graph, vertex, label \\ nil) do
-    %{
-      graph
-      | vertices: MapSet.put(graph.vertices, vertex),
-        labels: if(label, do: Map.put(graph.labels, vertex, label), else: graph.labels)
-    }
-  end
-
-  def get_label(graph, vertex) do
-    Map.get(graph.labels, vertex)
-  end
-
-  def set_label(graph, vertex, label) do
-    if MapSet.member?(graph.vertices, vertex) do
-      %{graph | labels: Map.put(graph.labels, vertex, label)}
-    else
-      graph
-    end
-  end
+  use Giraffe.Graph.Base
 
   @doc """
   Adds a weighted edge between two vertices in the graph.
@@ -65,12 +26,6 @@ defmodule Giraffe.Graph.Directed do
   end
 
   @doc """
-  Returns a list of all vertices in the graph.
-  """
-  @spec vertices(t()) :: [vertex()]
-  def vertices(%__MODULE__{vertices: vertices}), do: MapSet.to_list(vertices)
-
-  @doc """
   Returns a list of all edges in the graph as tuples of {from, to, weight}.
   """
   @spec edges(t()) :: [edge()]
@@ -87,26 +42,17 @@ defmodule Giraffe.Graph.Directed do
   """
   @spec get_shortest_path(t(), vertex(), vertex()) :: {:ok, [vertex()], weight()} | :no_path
   def get_shortest_path(%__MODULE__{edges: edges, vertices: vertices}, start, finish) do
-    # Initialize distances map with infinity for all vertices except start
     distances = Enum.reduce(vertices, %{}, fn v, acc -> Map.put(acc, v, :infinity) end)
     distances = Map.put(distances, start, 0)
-
-    # Initialize empty predecessors map
     predecessors = %{}
-
-    # Priority queue with {vertex, distance} tuples, starting with just the start vertex
     queue = :gb_sets.singleton({0, start})
 
     {final_distances, final_predecessors} =
       dijkstra_loop(queue, distances, predecessors, edges, finish)
 
     case Map.get(final_distances, finish) do
-      :infinity ->
-        :no_path
-
-      distance ->
-        path = build_path(final_predecessors, finish)
-        {:ok, path, distance}
+      :infinity -> :no_path
+      distance -> {:ok, build_path(final_predecessors, finish), distance}
     end
   end
 
@@ -132,20 +78,13 @@ defmodule Giraffe.Graph.Directed do
 
   @doc """
   Finds the shortest paths from a source vertex to all other vertices using the Bellman-Ford algorithm.
-  Returns {:ok, distances} with distances from source to all reachable vertices, or {:error, :negative_cycle}
-  if a negative cycle is detected.
   """
   def shortest_paths(graph, source) do
-    Giraffe.Algorithms.BellmanFord.shortest_paths(
-      graph,
-      source
-    )
+    Giraffe.Algorithms.BellmanFord.shortest_paths(graph, source)
   end
 
   @doc """
   Checks if the graph is acyclic.
-
-  Returns `true` if the graph is acyclic, otherwise `false`.
   """
   @spec is_acyclic?(t()) :: boolean()
   def is_acyclic?(%__MODULE__{edges: edges, vertices: vertices}) do
@@ -156,179 +95,26 @@ defmodule Giraffe.Graph.Directed do
 
   @doc """
   Checks if the graph is cyclic.
-
-  Returns `true` if the graph contains cycles, otherwise `false`.
   """
   @spec is_cyclic?(t()) :: boolean()
   def is_cyclic?(graph), do: not is_acyclic?(graph)
 
   @spec neighbors(t(), vertex()) :: [vertex()]
   def neighbors(%__MODULE__{edges: edges}, vertex) do
-    # Get outgoing edges
     outgoing = Map.get(edges, vertex, %{}) |> Map.keys()
 
-    # Get incoming edges
     incoming =
       edges
       |> Enum.filter(fn {_, targets} -> Map.has_key?(targets, vertex) end)
       |> Enum.map(fn {source, _} -> source end)
 
-    # Combine and remove duplicates
     (outgoing ++ incoming)
     |> Enum.uniq()
     |> Enum.sort()
   end
 
-  @spec postorder(t()) :: [vertex()]
-  def postorder(%__MODULE__{vertices: vertices, edges: edges}) do
-    visited = MapSet.new()
-    result = []
-
-    vertices
-    |> MapSet.to_list()
-    |> Enum.reduce({visited, result}, fn vertex, {visited, result} ->
-      if MapSet.member?(visited, vertex) do
-        {visited, result}
-      else
-        dfs_postorder(vertex, edges, visited, result)
-      end
-    end)
-    |> elem(1)
-    |> Enum.reverse()
-  end
-
-  defp dfs_postorder(vertex, edges, visited, result) do
-    visited = MapSet.put(visited, vertex)
-
-    {new_visited, new_result} =
-      edges
-      |> Map.get(vertex, %{})
-      |> Map.keys()
-      |> Enum.reduce({visited, result}, fn neighbor, {vis, res} ->
-        if MapSet.member?(vis, neighbor) do
-          {vis, res}
-        else
-          dfs_postorder(neighbor, edges, vis, res)
-        end
-      end)
-
-    {new_visited, [vertex | new_result]}
-  end
-
-  @spec reachable(t(), [Giraffe.Graph.vertex()]) :: [Giraffe.Graph.vertex()]
-  def reachable(graph, vertices) do
-    vertices
-    |> Enum.reduce(MapSet.new(), fn vertex, acc ->
-      do_reachable(graph, vertex, MapSet.new(), acc)
-    end)
-    |> MapSet.to_list()
-  end
-
-  defp do_reachable(graph, vertex, visited, acc) do
-    if MapSet.member?(visited, vertex) do
-      acc
-    else
-      visited = MapSet.put(visited, vertex)
-      acc = MapSet.put(acc, vertex)
-
-      neighbors = get_neighbors(graph, vertex)
-
-      Enum.reduce(neighbors, acc, fn neighbor, new_acc ->
-        do_reachable(graph, neighbor, visited, new_acc)
-      end)
-    end
-  end
-
-  defp get_neighbors(graph, vertex) do
-    Map.get(graph.edges, vertex, [])
-    |> Enum.map(fn {v, _weight} -> v end)
-  end
-
   # Private Functions
 
-  defp recurse_vertices([], _visited, _edges), do: true
-
-  defp recurse_vertices([v | rest], visited, edges) do
-    case Map.get(visited, v) do
-      :unvisited ->
-        {has_cycle, new_visited} = has_cycle?(v, edges, visited, MapSet.new())
-
-        if has_cycle do
-          false
-        else
-          recurse_vertices(rest, new_visited, edges)
-        end
-
-      _ ->
-        recurse_vertices(rest, visited, edges)
-    end
-  end
-
-  defp has_cycle?(vertex, edges, visited, path) do
-    if MapSet.member?(path, vertex) do
-      {true, visited}
-    else
-      visited = Map.put(visited, vertex, :visited)
-      path = MapSet.put(path, vertex)
-
-      neighbors = Map.get(edges, vertex, %{})
-
-      Enum.reduce_while(neighbors, {false, visited}, fn {neighbor, _weight},
-                                                        {_cycle, acc_visited} ->
-        case Map.get(acc_visited, neighbor) do
-          :unvisited ->
-            {has_cycle, new_visited} = has_cycle?(neighbor, edges, acc_visited, path)
-            if has_cycle, do: {:halt, {true, new_visited}}, else: {:cont, {false, new_visited}}
-
-          _ ->
-            if MapSet.member?(path, neighbor) do
-              {:halt, {true, acc_visited}}
-            else
-              {:cont, {false, acc_visited}}
-            end
-        end
-      end)
-    end
-  end
-
-  @doc false
-  @spec to_undirected_edges(%{vertex() => %{vertex() => weight()}}) :: %{
-          vertex() => %{vertex() => weight()}
-        }
-  defp to_undirected_edges(edges) do
-    Enum.reduce(edges, %{}, fn {from, targets}, acc ->
-      Enum.reduce(targets, acc, fn {to, weight}, inner_acc ->
-        if bidirectional?(edges, from, to) do
-          inner_acc
-          |> Map.update(from, %{to => weight}, &Map.put(&1, to, weight))
-          |> Map.update(to, %{from => weight}, &Map.put(&1, from, weight))
-        else
-          inner_acc
-        end
-      end)
-    end)
-  end
-
-  @doc false
-  @spec bidirectional?(%{vertex() => %{vertex() => weight()}}, vertex(), vertex()) :: boolean()
-  defp bidirectional?(edges, v1, v2) do
-    has_edge?(edges, v1, v2) and has_edge?(edges, v2, v1)
-  end
-
-  @doc false
-  @spec has_edge?(%{vertex() => %{vertex() => weight()}}, vertex(), vertex()) :: boolean()
-  defp has_edge?(edges, from, to) do
-    edges |> Map.get(from, %{}) |> Map.has_key?(to)
-  end
-
-  @doc false
-  @spec dijkstra_loop(
-          :gb_sets.set(),
-          map(),
-          map(),
-          %{vertex() => %{vertex() => weight()}},
-          vertex()
-        ) :: {map(), map()}
   defp dijkstra_loop(queue, distances, predecessors, edges, target) do
     case :gb_sets.is_empty(queue) do
       true ->
@@ -349,10 +135,11 @@ defmodule Giraffe.Graph.Directed do
               alt = current_distance + weight
 
               if alt < Map.get(dist_acc, neighbor, :infinity) do
-                new_dist = Map.put(dist_acc, neighbor, alt)
-                new_pred = Map.put(pred_acc, neighbor, current)
-                new_queue = :gb_sets.add({alt, neighbor}, queue_acc)
-                {new_dist, new_pred, new_queue}
+                {
+                  Map.put(dist_acc, neighbor, alt),
+                  Map.put(pred_acc, neighbor, current),
+                  :gb_sets.add({alt, neighbor}, queue_acc)
+                }
               else
                 {dist_acc, pred_acc, queue_acc}
               end
@@ -363,12 +150,10 @@ defmodule Giraffe.Graph.Directed do
     end
   end
 
-  @spec build_path(map(), vertex()) :: [vertex()]
   defp build_path(predecessors, target) do
     build_path_recursive(predecessors, target, [target])
   end
 
-  @spec build_path_recursive(map(), vertex(), [vertex()]) :: [vertex()]
   defp build_path_recursive(predecessors, current, path) do
     case Map.get(predecessors, current) do
       nil -> path
@@ -376,10 +161,69 @@ defmodule Giraffe.Graph.Directed do
     end
   end
 
-  @spec find_all_paths(t(), vertex(), vertex(), [vertex()], MapSet.t(), weight()) :: [
-          {[vertex()], weight()}
-        ]
-  defp find_all_paths(_graph, current, finish, path, _visited, weight) when current == finish do
+  defp to_undirected_edges(edges) do
+    Enum.reduce(edges, %{}, fn {from, targets}, acc ->
+      Enum.reduce(targets, acc, fn {to, weight}, inner_acc ->
+        if bidirectional?(edges, from, to) do
+          inner_acc
+          |> Map.update(from, %{to => weight}, &Map.put(&1, to, weight))
+          |> Map.update(to, %{from => weight}, &Map.put(&1, from, weight))
+        else
+          inner_acc
+        end
+      end)
+    end)
+  end
+
+  defp bidirectional?(edges, v1, v2) do
+    has_edge?(edges, v1, v2) and has_edge?(edges, v2, v1)
+  end
+
+  defp has_edge?(edges, from, to) do
+    edges |> Map.get(from, %{}) |> Map.has_key?(to)
+  end
+
+  defp recurse_vertices([], _visited, _edges), do: true
+
+  defp recurse_vertices([v | rest], visited, edges) do
+    case Map.get(visited, v) do
+      :unvisited ->
+        {has_cycle, new_visited} = has_cycle?(v, edges, visited, MapSet.new())
+        if has_cycle, do: false, else: recurse_vertices(rest, new_visited, edges)
+
+      _ ->
+        recurse_vertices(rest, visited, edges)
+    end
+  end
+
+  defp has_cycle?(vertex, edges, visited, path) do
+    if MapSet.member?(path, vertex) do
+      {true, visited}
+    else
+      visited = Map.put(visited, vertex, :visited)
+      path = MapSet.put(path, vertex)
+      neighbors = Map.get(edges, vertex, %{})
+
+      Enum.reduce_while(neighbors, {false, visited}, fn {neighbor, _weight},
+                                                        {_cycle, acc_visited} ->
+        case Map.get(acc_visited, neighbor) do
+          :unvisited ->
+            {has_cycle, new_visited} = has_cycle?(neighbor, edges, acc_visited, path)
+            if has_cycle, do: {:halt, {true, new_visited}}, else: {:cont, {false, new_visited}}
+
+          _ ->
+            if MapSet.member?(path, neighbor) do
+              {:halt, {true, acc_visited}}
+            else
+              {:cont, {false, acc_visited}}
+            end
+        end
+      end)
+    end
+  end
+
+  defp find_all_paths(_graph, current, finish, path, _visited, weight)
+       when current == finish do
     [{Enum.reverse(path), weight}]
   end
 
