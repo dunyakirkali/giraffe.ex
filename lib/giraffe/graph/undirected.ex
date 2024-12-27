@@ -44,23 +44,25 @@ defmodule Giraffe.Graph.Undirected do
   Returns {:ok, path, total_weight} if a path exists, :no_path otherwise.
   """
   @spec get_shortest_path(t(), vertex(), vertex()) :: {:ok, [vertex()], weight()} | :no_path
-  def get_shortest_path(graph, start, finish) do
-    case dijkstra(graph, start, finish) do
-      {:ok, distances, predecessors} ->
-        case Map.get(distances, finish) do
-          nil ->
-            :no_path
+  def get_shortest_path(%__MODULE__{edges: edges, vertices: vertices}, start, finish) do
+    if not MapSet.member?(vertices, start) or not MapSet.member?(vertices, finish) do
+      :no_path
+    else
+      # Initialize distances and predecessors
+      distances = Map.new(vertices, fn v -> {v, if(v == start, do: 0, else: :infinity)} end)
+      predecessors = %{}
 
-          :infinity ->
-            :no_path
+      # Initialize priority queue with start vertex
+      queue = Giraffe.PriorityQueue.new() |> Giraffe.PriorityQueue.enqueue(0, start)
 
-          total_weight ->
-            path = build_path(predecessors, finish)
-            {:ok, path, total_weight}
-        end
-
-      :no_path ->
-        :no_path
+      # Run Dijkstra's algorithm
+      case dijkstra_loop(queue, distances, predecessors, edges, finish) do
+        {distances, predecessors} ->
+          case Map.get(distances, finish) do
+            :infinity -> :no_path
+            distance -> {:ok, build_path(predecessors, finish), distance}
+          end
+      end
     end
   end
 
@@ -126,76 +128,38 @@ defmodule Giraffe.Graph.Undirected do
 
   # Private Functions
 
-  defp dijkstra(%__MODULE__{edges: edges, vertices: vertices}, start, finish) do
-    if not MapSet.member?(vertices, start) or not MapSet.member?(vertices, finish) do
-      :no_path
-    else
-      distances =
-        MapSet.to_list(vertices)
-        |> Map.new(fn vertex ->
-          if vertex == start, do: {vertex, 0}, else: {vertex, :infinity}
-        end)
+  defp dijkstra_loop(queue, distances, predecessors, edges, target) do
+    case Giraffe.PriorityQueue.dequeue(queue) do
+      :empty ->
+        {distances, predecessors}
 
-      dijkstra_traverse(edges, MapSet.to_list(vertices) |> MapSet.new(), distances, %{})
-    end
-  end
-
-  defp dijkstra_traverse(edges, unvisited, distances, predecessors)
-       when map_size(distances) > 0 do
-    case find_min_distance_vertex(unvisited, distances) do
-      nil ->
-        {:ok, distances, predecessors}
-
-      current ->
-        if Map.get(distances, current) == :infinity do
-          :no_path
+      {current, rest} ->
+        if current == target do
+          {distances, predecessors}
         else
+          current_distance = Map.get(distances, current)
           neighbors = Map.get(edges, current, %{})
 
-          {new_distances, new_predecessors} =
-            update_distances(neighbors, current, distances, predecessors)
+          {new_distances, new_predecessors, new_queue} =
+            Enum.reduce(neighbors, {distances, predecessors, rest}, fn {neighbor, weight},
+                                                                       {dist_acc, pred_acc,
+                                                                        queue_acc} ->
+              alt = current_distance + weight
 
-          dijkstra_traverse(
-            edges,
-            MapSet.delete(unvisited, current),
-            new_distances,
-            new_predecessors
-          )
+              if alt < Map.get(dist_acc, neighbor, :infinity) do
+                {
+                  Map.put(dist_acc, neighbor, alt),
+                  Map.put(pred_acc, neighbor, current),
+                  Giraffe.PriorityQueue.enqueue(queue_acc, alt, neighbor)
+                }
+              else
+                {dist_acc, pred_acc, queue_acc}
+              end
+            end)
+
+          dijkstra_loop(new_queue, new_distances, new_predecessors, edges, target)
         end
     end
-  end
-
-  defp find_min_distance_vertex(unvisited, distances) do
-    Enum.min_by(
-      MapSet.to_list(unvisited),
-      fn vertex -> Map.get(distances, vertex, :infinity) end,
-      &<=/2,
-      fn -> nil end
-    )
-  end
-
-  defp update_distances(neighbors, current, distances, predecessors) do
-    current_distance = Map.get(distances, current)
-
-    Enum.reduce(neighbors, {distances, predecessors}, fn {neighbor, weight},
-                                                         {dist_acc, pred_acc} ->
-      case Map.get(dist_acc, neighbor) do
-        nil ->
-          {dist_acc, pred_acc}
-
-        neighbor_distance ->
-          potential_distance = current_distance + weight
-
-          if neighbor_distance == :infinity or potential_distance < neighbor_distance do
-            {
-              Map.put(dist_acc, neighbor, potential_distance),
-              Map.put(pred_acc, neighbor, current)
-            }
-          else
-            {dist_acc, pred_acc}
-          end
-      end
-    end)
   end
 
   defp build_path(predecessors, target) do

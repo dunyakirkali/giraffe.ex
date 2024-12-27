@@ -70,17 +70,24 @@ defmodule Giraffe.Graph.Directed do
   """
   @spec get_shortest_path(t(), vertex(), vertex()) :: {:ok, [vertex()], weight()} | :no_path
   def get_shortest_path(%__MODULE__{edges: edges, vertices: vertices}, start, finish) do
-    distances = Enum.reduce(vertices, %{}, fn v, acc -> Map.put(acc, v, :infinity) end)
-    distances = Map.put(distances, start, 0)
-    predecessors = %{}
-    queue = :gb_sets.singleton({0, start})
+    if not MapSet.member?(vertices, start) or not MapSet.member?(vertices, finish) do
+      :no_path
+    else
+      # Initialize distances and predecessors
+      distances = Map.new(vertices, fn v -> {v, if(v == start, do: 0, else: :infinity)} end)
+      predecessors = %{}
 
-    {final_distances, final_predecessors} =
-      dijkstra_loop(queue, distances, predecessors, edges, finish)
+      # Initialize priority queue with start vertex
+      queue = Giraffe.PriorityQueue.new() |> Giraffe.PriorityQueue.enqueue(0, start)
 
-    case Map.get(final_distances, finish) do
-      :infinity -> :no_path
-      distance -> {:ok, build_path(final_predecessors, finish), distance}
+      # Run Dijkstra's algorithm
+      case dijkstra_loop(queue, distances, predecessors, edges, finish) do
+        {distances, predecessors} ->
+          case Map.get(distances, finish) do
+            :infinity -> :no_path
+            distance -> {:ok, build_path(predecessors, finish), distance}
+          end
+      end
     end
   end
 
@@ -193,18 +200,16 @@ defmodule Giraffe.Graph.Directed do
 
   # Private Functions
 
-  @spec dijkstra_loop(:gb_sets.set(), map(), map(), map(), vertex()) :: {map(), map()}
   defp dijkstra_loop(queue, distances, predecessors, edges, target) do
-    case :gb_sets.is_empty(queue) do
-      true ->
+    case Giraffe.PriorityQueue.dequeue(queue) do
+      :empty ->
         {distances, predecessors}
 
-      false ->
-        {{current_distance, current}, rest} = :gb_sets.take_smallest(queue)
-
+      {current, rest} ->
         if current == target do
           {distances, predecessors}
         else
+          current_distance = Map.get(distances, current)
           neighbors = Map.get(edges, current, %{})
 
           {new_distances, new_predecessors, new_queue} =
@@ -217,7 +222,7 @@ defmodule Giraffe.Graph.Directed do
                 {
                   Map.put(dist_acc, neighbor, alt),
                   Map.put(pred_acc, neighbor, current),
-                  :gb_sets.add({alt, neighbor}, queue_acc)
+                  Giraffe.PriorityQueue.enqueue(queue_acc, alt, neighbor)
                 }
               else
                 {dist_acc, pred_acc, queue_acc}
