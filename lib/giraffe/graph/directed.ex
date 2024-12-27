@@ -4,15 +4,15 @@ defmodule Giraffe.Graph.Directed do
   Vertices can be any term, and edges have numeric weights.
   """
 
-  defstruct vertices: MapSet.new(),
-            edges: %{}
+  defstruct vertices: MapSet.new(), edges: %{}, labels: %{}
 
   @type vertex :: any()
   @type weight :: number()
   @type edge :: {vertex(), vertex(), weight()}
   @type t :: %__MODULE__{
           vertices: MapSet.t(),
-          edges: %{vertex() => %{vertex() => weight()}}
+          edges: %{vertex() => %{vertex() => weight()}},
+          labels: map()
         }
 
   @doc """
@@ -25,8 +25,24 @@ defmodule Giraffe.Graph.Directed do
   Adds a vertex to the graph.
   """
   @spec add_vertex(t(), vertex()) :: t()
-  def add_vertex(%__MODULE__{vertices: vertices} = graph, vertex) do
-    %{graph | vertices: MapSet.put(vertices, vertex)}
+  def add_vertex(graph, vertex, label \\ nil) do
+    %{
+      graph
+      | vertices: MapSet.put(graph.vertices, vertex),
+        labels: if(label, do: Map.put(graph.labels, vertex, label), else: graph.labels)
+    }
+  end
+
+  def get_label(graph, vertex) do
+    Map.get(graph.labels, vertex)
+  end
+
+  def set_label(graph, vertex, label) do
+    if MapSet.member?(graph.vertices, vertex) do
+      %{graph | labels: Map.put(graph.labels, vertex, label)}
+    else
+      graph
+    end
   end
 
   @doc """

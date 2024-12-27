@@ -8,6 +8,7 @@ defmodule Giraffe.Graph do
 
   @type vertex :: any()
   @type weight :: number()
+  @type label :: any()
   @type edge :: {vertex(), vertex(), weight()}
   @type t :: %__MODULE__{
           type: :directed | :undirected,
@@ -36,9 +37,19 @@ defmodule Giraffe.Graph do
   def new(type: :undirected),
     do: %__MODULE__{type: :undirected, impl: Giraffe.Graph.Undirected.new()}
 
-  @spec add_vertex(t(), vertex()) :: t()
-  def add_vertex(%__MODULE__{type: type, impl: impl} = graph, vertex) do
-    %{graph | impl: apply_impl(type, :add_vertex, [impl, vertex])}
+  @spec add_vertex(t(), vertex(), label()) :: t()
+  def add_vertex(%__MODULE__{type: type, impl: impl} = graph, vertex, label \\ nil) do
+    %{graph | impl: apply_impl(type, :add_vertex, [impl, vertex, label])}
+  end
+
+  @spec get_label(t(), vertex()) :: label() | nil
+  def get_label(%__MODULE__{type: type, impl: impl}, vertex) do
+    apply_impl(type, :get_label, [impl, vertex])
+  end
+
+  @spec set_label(t(), vertex(), label()) :: t()
+  def set_label(%__MODULE__{type: type, impl: impl} = graph, vertex, label) do
+    %{graph | impl: apply_impl(type, :set_label, [impl, vertex, label])}
   end
 
   @spec add_edge(t(), vertex(), vertex(), weight()) :: t()

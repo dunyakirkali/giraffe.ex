@@ -283,4 +283,52 @@ defmodule Giraffe.Graph.DirectedTest do
       assert :d in result
     end
   end
+
+  describe "vertex labels" do
+    test "adds vertex with label" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(1, "First")
+
+      assert MapSet.member?(graph.vertices, 1)
+      assert Graph.get_label(graph, 1) == "First"
+    end
+
+    test "adds vertex without label" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(1)
+
+      assert MapSet.member?(graph.vertices, 1)
+      assert Graph.get_label(graph, 1) == nil
+    end
+
+    test "sets label for existing vertex" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(1)
+        |> Graph.set_label(1, "Updated")
+
+      assert Graph.get_label(graph, 1) == "Updated"
+    end
+
+    test "ignores set_label for non-existing vertex" do
+      graph = Graph.new()
+      updated_graph = Graph.set_label(graph, 1, "Label")
+
+      assert graph == updated_graph
+      assert Graph.get_label(graph, 1) == nil
+    end
+
+    test "maintains labels when adding edges" do
+      graph =
+        Graph.new()
+        |> Graph.add_vertex(1, "Start")
+        |> Graph.add_vertex(2, "End")
+        |> Graph.add_edge(1, 2, 1)
+
+      assert Graph.get_label(graph, 1) == "Start"
+      assert Graph.get_label(graph, 2) == "End"
+    end
+  end
 end

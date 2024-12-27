@@ -4,15 +4,15 @@ defmodule Giraffe.Graph.Undirected do
   Vertices can be any term, and edges have numeric weights.
   """
 
-  defstruct vertices: MapSet.new(),
-            edges: %{}
+  defstruct vertices: MapSet.new(), edges: %{}, labels: %{}
 
   @type vertex :: any()
   @type weight :: number()
   @type edge :: {vertex(), vertex(), weight()}
   @type t :: %__MODULE__{
           vertices: MapSet.t(),
-          edges: %{vertex() => %{vertex() => weight()}}
+          edges: %{vertex() => %{vertex() => weight()}},
+          labels: map()
         }
 
   @doc """
@@ -25,8 +25,24 @@ defmodule Giraffe.Graph.Undirected do
   Adds a vertex to the graph.
   """
   @spec add_vertex(t(), vertex()) :: t()
-  def add_vertex(%__MODULE__{vertices: vertices} = graph, vertex) do
-    %{graph | vertices: MapSet.put(vertices, vertex)}
+  def add_vertex(graph, vertex, label \\ nil) do
+    %{
+      graph
+      | vertices: MapSet.put(graph.vertices, vertex),
+        labels: if(label, do: Map.put(graph.labels, vertex, label), else: graph.labels)
+    }
+  end
+
+  def get_label(graph, vertex) do
+    Map.get(graph.labels, vertex)
+  end
+
+  def set_label(graph, vertex, label) do
+    if MapSet.member?(graph.vertices, vertex) do
+      %{graph | labels: Map.put(graph.labels, vertex, label)}
+    else
+      graph
+    end
   end
 
   @doc """
@@ -34,18 +50,17 @@ defmodule Giraffe.Graph.Undirected do
   If the vertices don't exist, they will be added to the graph.
   """
   @spec add_edge(t(), vertex(), vertex(), weight()) :: t()
-  def add_edge(%__MODULE__{edges: edges, vertices: vertices} = graph, vertex1, vertex2, weight) do
-    new_vertices =
-      vertices
-      |> MapSet.put(vertex1)
-      |> MapSet.put(vertex2)
+  def add_edge(graph, v1, v2, weight \\ 1) do
+    graph = add_vertex(graph, v1)
+    graph = add_vertex(graph, v2)
 
-    new_edges =
-      edges
-      |> Map.update(vertex1, %{vertex2 => weight}, fn map -> Map.put(map, vertex2, weight) end)
-      |> Map.update(vertex2, %{vertex1 => weight}, fn map -> Map.put(map, vertex1, weight) end)
-
-    %{graph | edges: new_edges, vertices: new_vertices}
+    %{
+      graph
+      | edges:
+          graph.edges
+          |> Map.update(v1, %{v2 => weight}, &Map.put(&1, v2, weight))
+          |> Map.update(v2, %{v1 => weight}, &Map.put(&1, v1, weight))
+    }
   end
 
   @doc """
@@ -59,14 +74,14 @@ defmodule Giraffe.Graph.Undirected do
   Each edge is represented as a tuple {from, to, weight}.
   """
   @spec edges(t()) :: [edge()]
-  def edges(%__MODULE__{edges: edges}) do
-    edges
-    |> Enum.flat_map(fn {from, targets} ->
-      Enum.map(targets, fn {to, weight} ->
-        if from <= to, do: [{from, to, weight}], else: []
+  def edges(graph) do
+    graph.edges
+    |> Enum.flat_map(fn {v1, edges} ->
+      Enum.map(edges, fn {v2, weight} ->
+        if v1 <= v2, do: {v1, v2, weight}, else: {v2, v1, weight}
       end)
     end)
-    |> List.flatten()
+    |> Enum.uniq()
   end
 
   @doc """
