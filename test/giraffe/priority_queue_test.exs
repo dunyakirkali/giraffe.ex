@@ -79,44 +79,37 @@ defmodule Giraffe.PriorityQueueTest do
     end
   end
 
-  describe "integration tests" do
-    test "handles multiple operations" do
-      queue = PriorityQueue.new()
-      assert PriorityQueue.empty?(queue)
+  test "inspect" do
+    queue =
+      Enum.reduce(0..4, PriorityQueue.new(), fn i, acc ->
+        acc |> PriorityQueue.enqueue(i, ?a + i)
+      end)
 
-      queue =
-        queue
-        |> PriorityQueue.enqueue(3, "low")
-        |> PriorityQueue.enqueue(1, "high")
-        |> PriorityQueue.enqueue(2, "medium")
-
-      assert PriorityQueue.size(queue) == 3
-
-      {item1, queue} = PriorityQueue.dequeue(queue)
-      assert item1 == "high"
-
-      {item2, queue} = PriorityQueue.dequeue(queue)
-      assert item2 == "medium"
-
-      {item3, queue} = PriorityQueue.dequeue(queue)
-      assert item3 == "low"
-
-      assert PriorityQueue.empty?(queue)
-      assert PriorityQueue.dequeue(queue) == :empty
-    end
+    str = "#{inspect(queue)}"
+    assert "#PriorityQueue<size: 5, queue: ~c\"abcde\">" = str
   end
 
-  describe "inspect/1" do
-    test "pretty prints the size and the queue" do
-      queue =
-        PriorityQueue.new()
-        |> PriorityQueue.enqueue(3, "low")
-        |> PriorityQueue.enqueue(1, "high")
-        |> PriorityQueue.enqueue(2, "medium")
+  test "can enqueue random elements and pull them out in priority order" do
+    queue =
+      Enum.reduce(Enum.shuffle(0..9), PriorityQueue.new(), fn i, acc ->
+        acc
+        |> PriorityQueue.enqueue(i, ?a + i)
+        |> PriorityQueue.enqueue(i, ?a + i)
+      end)
 
-      str = "#{inspect(queue)}"
-      assert "#PriorityQueue<size: 3, queue: [\"high\", \"medium\", \"low\"]>" = str
-    end
+    result =
+      Enum.reduce(1..21, {queue, []}, fn _, {q, acc} ->
+        case PriorityQueue.dequeue(q) do
+          :empty ->
+            Enum.reverse(acc)
+
+          {char, q1} ->
+            {q1, [char | acc]}
+        end
+      end)
+
+    assert [?a, ?a, ?b, ?b, ?c, ?c, ?d, ?d, ?e, ?e, ?f, ?f, ?g, ?g, ?h, ?h, ?i, ?i, ?j, ?j] =
+             result
   end
 
   describe "peek/1" do
