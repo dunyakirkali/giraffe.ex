@@ -1,6 +1,7 @@
 defmodule Giraffe.Algorithms.BellmanFord do
   @moduledoc """
   Implementation of the Bellman-Ford algorithm for finding shortest paths in graphs.
+  Time complexity: O(VLogV)
   """
 
   @type vertex :: any()
@@ -10,38 +11,51 @@ defmodule Giraffe.Algorithms.BellmanFord do
 
   @doc """
   Finds the shortest paths from a source vertex to all other vertices in the graph.
-
-  Returns a map of vertices to their shortest distance from the source.
-  If a negative cycle is detected, returns `{:error, :negative_cycle}`.
+  Returns nil when graph has negative cycle.
   """
   @spec shortest_paths(adjacency_list() | graph_struct(), vertex()) ::
-          {:ok, %{vertex() => number()}} | {:error, :negative_cycle}
+          {:ok, %{vertex() => number() | :infinity}} | {:error, :negative_cycle}
   def shortest_paths(graph, source) do
     {vertices, edges} = extract_graph_data(graph)
+    distances = init_distances(source, vertices)
 
-    # Initialize distances
-    distances = Map.new(vertices, fn v -> {v, if(v == source, do: 0, else: :infinity)} end)
-
-    # Relax edges |V| - 1 times
     distances =
-      Enum.reduce(1..(length(vertices) - 1), distances, fn _, acc ->
-        Enum.reduce(edges, acc, fn {u, v, weight}, dists ->
-          if dists[u] != :infinity and dists[u] + weight < (dists[v] || :infinity) do
-            Map.put(dists, v, dists[u] + weight)
-          else
-            dists
-          end
-        end)
-      end)
+      for _ <- 1..length(vertices),
+          {u, v, weight} <- edges,
+          reduce: distances do
+        acc -> update_distance({u, v, weight}, acc)
+      end
 
-    # Check for negative cycles
-    if Enum.any?(edges, fn {u, v, weight} ->
-         distances[u] != :infinity and distances[u] + weight < distances[v]
-       end) do
+    if has_negative_cycle?(distances, edges) do
       {:error, :negative_cycle}
     else
       {:ok, distances}
     end
+  end
+
+  defp init_distances(source, vertices) do
+    Map.new(vertices, fn v ->
+      if v == source, do: {v, 0}, else: {v, :infinity}
+    end)
+  end
+
+  defp update_distance({u, v, weight}, distances) do
+    du = Map.get(distances, u, :infinity)
+    dv = Map.get(distances, v, :infinity)
+
+    if du != :infinity and du + weight < dv do
+      Map.put(distances, v, du + weight)
+    else
+      distances
+    end
+  end
+
+  defp has_negative_cycle?(distances, edges) do
+    Enum.any?(edges, fn {u, v, weight} ->
+      du = Map.get(distances, u, :infinity)
+      dv = Map.get(distances, v, :infinity)
+      du != :infinity and du + weight < dv
+    end)
   end
 
   # Private helper to extract vertices and edges from different graph formats
